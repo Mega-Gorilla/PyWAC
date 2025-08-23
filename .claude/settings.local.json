@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(.venvScriptsactivate)",
+      "Bash(.venv\\\\Scripts\\\\python.exe:*)",
+      "Bash(powershell:*)",
+      "Bash(git clone:*)",
+      "WebSearch",
+      "Bash(del:*)"
+    ],
+    "deny": [],
+    "ask": [],
+    "additionalDirectories": [
+      "D:\\"
+    ]
+  }
+}

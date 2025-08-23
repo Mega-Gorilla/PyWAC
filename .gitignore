@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+# C++ and Build
+build/
+dist/*.pyd
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.dll
+*.exe
+
+# Visual Studio
+.vs/
+*.sln
+*.vcxproj*
+*.user
+*.suo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Temporary
+*.tmp
+*.temp
+*.log
+nul
+
+CLAUDE.md
+# External repositories (cloned for reference)
+windows-classic-samples/
+win-capture-audio/
