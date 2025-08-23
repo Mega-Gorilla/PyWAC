@@ -5,12 +5,32 @@ Basic usage example for Windows Audio Capture Library
 import sys
 import os
 import time
-import numpy as np
 
 # Add parent directory to path to import modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'dist'))
 
-import audio_session_capture as asc
+# Error handling for module import
+try:
+    import pypac
+except ImportError as e:
+    print("=" * 60)
+    print("ERROR: Failed to import pypac module")
+    print("=" * 60)
+    print(f"Details: {e}")
+    print("\nPossible solutions:")
+    print("1. Build the module: python setup.py build_ext --inplace")
+    print("2. Install Visual C++ Redistributable from:")
+    print("   https://aka.ms/vs/17/release/vc_redist.x64.exe")
+    print("3. Check if pypac.pyd exists in dist/ folder")
+    sys.exit(1)
+
+# Import numpy with error handling
+try:
+    import numpy as np
+except ImportError:
+    print("Warning: NumPy not installed. Some features will be limited.")
+    print("Install with: pip install numpy")
+    np = None
 
 
 def example_enumerate_sessions():
@@ -19,11 +39,16 @@ def example_enumerate_sessions():
     print("EXAMPLE 1: Enumerate Audio Sessions")
     print("=" * 60)
     
-    # Create session enumerator
-    enumerator = asc.SessionEnumerator()
-    
-    # Get all sessions
-    sessions = enumerator.enumerate_sessions()
+    try:
+        # Create session enumerator
+        enumerator = pypac.SessionEnumerator()
+        
+        # Get all sessions
+        sessions = enumerator.enumerate_sessions()
+    except Exception as e:
+        print(f"Error creating SessionEnumerator: {e}")
+        print("Make sure you have proper permissions.")
+        return
     
     print(f"\nFound {len(sessions)} audio sessions:\n")
     
@@ -44,8 +69,16 @@ def example_simple_capture():
     print("EXAMPLE 2: Simple Audio Capture")
     print("=" * 60)
     
-    # Create loopback capture
-    loopback = asc.SimpleLoopback()
+    if np is None:
+        print("Skipping audio capture example (NumPy not installed)")
+        return
+    
+    try:
+        # Create loopback capture
+        loopback = pypac.SimpleLoopback()
+    except Exception as e:
+        print(f"Error creating SimpleLoopback: {e}")
+        return
     
     print("\nStarting audio capture...")
     if loopback.start():
@@ -88,8 +121,12 @@ def example_volume_control():
     print("EXAMPLE 3: Volume Control")
     print("=" * 60)
     
-    enumerator = asc.SessionEnumerator()
-    sessions = enumerator.enumerate_sessions()
+    try:
+        enumerator = pypac.SessionEnumerator()
+        sessions = enumerator.enumerate_sessions()
+    except Exception as e:
+        print(f"Error: {e}")
+        return
     
     # Find active sessions
     active_sessions = [s for s in sessions if s.state == 1]
@@ -131,9 +168,13 @@ def main():
     import ctypes
     try:
         is_admin = ctypes.windll.shell32.IsUserAnAdmin()
-        print(f"Running as Administrator: {'Yes' if is_admin else 'No'}\n")
-    except:
-        pass
+        print(f"Running as Administrator: {'Yes' if is_admin else 'No'}")
+        if not is_admin:
+            print("Note: Some features may require administrator privileges.")
+    except Exception as e:
+        print(f"Could not check admin status: {e}")
+    
+    print()
     
     # Run examples
     example_enumerate_sessions()

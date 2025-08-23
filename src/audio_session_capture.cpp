@@ -347,8 +347,8 @@ public:
     }
 };
 
-PYBIND11_MODULE(audio_session_capture, m) {
-    m.doc() = "Windows Audio Session enumeration and simple loopback capture";
+PYBIND11_MODULE(pypac, m) {
+    m.doc() = "PyPAC - Python Process Audio Capture for Windows";
     
     py::class_<AudioSessionInfo>(m, "AudioSessionInfo")
         .def_readonly("process_id", &AudioSessionInfo::processId)

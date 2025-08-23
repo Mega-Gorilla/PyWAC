@@ -81,11 +81,11 @@ python examples/basic_usage.py
 ### Basic Usage
 
 ```python
-import audio_session_capture as asc
+import pypac
 import numpy as np
 
 # Enumerate audio sessions
-enumerator = asc.SessionEnumerator()
+enumerator = pypac.SessionEnumerator()
 sessions = enumerator.enumerate_sessions()
 
 for session in sessions:
@@ -95,7 +95,7 @@ for session in sessions:
         print(f"   Muted: {'Yes' if session.muted else 'No'}")
 
 # System-wide recording
-loopback = asc.SimpleLoopback()
+loopback = pypac.SimpleLoopback()
 if loopback.start():
     import time
     time.sleep(3)  # Record for 3 seconds
@@ -141,7 +141,7 @@ if loopback.start():
 ```python
 def adjust_app_volume(app_name: str, volume_percent: int) -> bool:
     """Adjust specific application volume"""
-    enumerator = asc.SessionEnumerator()
+    enumerator = pypac.SessionEnumerator()
     sessions = enumerator.enumerate_sessions()
     
     for session in sessions:
@@ -167,7 +167,7 @@ adjust_app_volume("chrome", 80)   # Set Chrome to 80%
 ```python
 def show_audio_meter(duration_seconds: int = 10):
     """Real-time audio level meter"""
-    loopback = asc.SimpleLoopback()
+    loopback = pypac.SimpleLoopback()
     
     if not loopback.start():
         print("❌ Failed to start capture")

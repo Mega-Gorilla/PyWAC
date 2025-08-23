@@ -1,6 +1,6 @@
 """Test Windows Audio Session enumeration and capture"""
 
-import audio_session_capture as asc
+import pypac
 import numpy as np
 import time
 
@@ -12,7 +12,7 @@ def test_session_enumeration():
     
     try:
         # Create session enumerator
-        enumerator = asc.SessionEnumerator()
+        enumerator = pypac.SessionEnumerator()
         print("[OK] SessionEnumerator created")
         
         # Enumerate sessions
@@ -51,7 +51,7 @@ def test_simple_loopback():
     
     try:
         # Create simple loopback
-        loopback = asc.SimpleLoopback()
+        loopback = pypac.SimpleLoopback()
         print("[OK] SimpleLoopback created")
         
         # Start capture
@@ -101,7 +101,7 @@ def test_volume_control():
     print("=" * 60)
     
     try:
-        enumerator = asc.SessionEnumerator()
+        enumerator = pypac.SessionEnumerator()
         sessions = enumerator.enumerate_sessions()
         
         # Find an active session

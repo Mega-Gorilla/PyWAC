@@ -11,7 +11,7 @@ ext_modules = [
         cxx_std=17,
     ),
     Pybind11Extension(
-        "audio_session_capture",
+        "pypac",
         ["src/audio_session_capture.cpp"],
         include_dirs=[],
         libraries=["ole32", "uuid", "mmdevapi", "psapi"],
@@ -21,7 +21,7 @@ ext_modules = [
 ]
 
 setup(
-    name="process_loopback",
+    name="pypac",
     ext_modules=ext_modules,
     cmdclass={"build_ext": build_ext},
     python_requires=">=3.7",

@@ -1,15 +1,15 @@
 """Simple test for audio session module"""
 
 def main():
-    print("Testing audio_session_capture module...")
+    print("Testing pypac module...")
     
     try:
-        import audio_session_capture as asc
+        import pypac
         print("[OK] Module imported")
         
         # Test SimpleLoopback
         print("\n[Testing SimpleLoopback]")
-        loopback = asc.SimpleLoopback()
+        loopback = pypac.SimpleLoopback()
         print("[OK] SimpleLoopback instance created")
         
         success = loopback.start()
@@ -29,7 +29,7 @@ def main():
         
         # Test SessionEnumerator
         print("\n[Testing SessionEnumerator]")
-        enumerator = asc.SessionEnumerator()
+        enumerator = pypac.SessionEnumerator()
         print("[OK] SessionEnumerator instance created")
         
         sessions = enumerator.enumerate_sessions()

@@ -81,11 +81,11 @@ python examples/basic_usage.py
 ### 基本的な使用例
 
 ```python
-import audio_session_capture as asc
+import pypac
 import numpy as np
 
 # オーディオセッションの列挙
-enumerator = asc.SessionEnumerator()
+enumerator = pypac.SessionEnumerator()
 sessions = enumerator.enumerate_sessions()
 
 for session in sessions:
@@ -95,7 +95,7 @@ for session in sessions:
         print(f"   ミュート: {'Yes' if session.muted else 'No'}")
 
 # システム全体の録音
-loopback = asc.SimpleLoopback()
+loopback = pypac.SimpleLoopback()
 if loopback.start():
     import time
     time.sleep(3)  # 3秒間録音
@@ -141,7 +141,7 @@ if loopback.start():
 ```python
 def adjust_app_volume(app_name: str, volume_percent: int) -> bool:
     """特定アプリケーションの音量を調整"""
-    enumerator = asc.SessionEnumerator()
+    enumerator = pypac.SessionEnumerator()
     sessions = enumerator.enumerate_sessions()
     
     for session in sessions:
@@ -167,7 +167,7 @@ adjust_app_volume("chrome", 80)   # Chromeを80%に
 ```python
 def show_audio_meter(duration_seconds: int = 10):
     """リアルタイムオーディオレベルメーター"""
-    loopback = asc.SimpleLoopback()
+    loopback = pypac.SimpleLoopback()
     
     if not loopback.start():
         print("❌ キャプチャを開始できません")
