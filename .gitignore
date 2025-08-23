@@ -33,6 +33,9 @@ dist/*.pyd
 *.swp
 *.swo
 
+# Claude Code Settings
+.claude/
+
 # OS
 Thumbs.db
 .DS_Store
