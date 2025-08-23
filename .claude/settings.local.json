@@ -7,7 +7,10 @@
       "Bash(powershell:*)",
       "Bash(git clone:*)",
       "WebSearch",
-      "Bash(del:*)"
+      "Bash(del:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": [],
