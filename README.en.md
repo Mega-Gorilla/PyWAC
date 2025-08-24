@@ -266,6 +266,51 @@ if loopback.start():
 
 ## Practical Examples
 
+### 🎯 Process-Specific Recording (Key Feature!)
+
+```python
+import pypac
+import process_loopback_v2 as loopback
+
+# Method 1: High-level API (in development)
+def record_specific_app(app_name, output_file, duration=10):
+    """Record audio from specific app only"""
+    pypac.record_process(app_name, output_file, duration)
+    print(f"✅ {app_name} audio recorded successfully!")
+
+# Method 2: Low-level API (currently working)
+def record_with_process_loopback():
+    """Direct Process Loopback API usage"""
+    # List audio sessions
+    processes = loopback.list_audio_processes()
+    
+    print("Available apps for recording:")
+    for proc in processes:
+        print(f"  - {proc.name} (PID: {proc.pid})")
+    
+    # Record Spotify (example)
+    spotify_pid = 51716  # Replace with actual PID
+    capture = loopback.ProcessCapture()
+    
+    if capture.start(spotify_pid):
+        print("Recording started...")
+        import time
+        time.sleep(10)  # Record for 10 seconds
+        
+        audio_data = capture.get_buffer()
+        capture.stop()
+        
+        # Save to WAV file
+        pypac.utils.save_to_wav(audio_data, "spotify_only.wav")
+        print("✅ Spotify audio saved successfully!")
+
+# Example: Record game audio only (no Discord voice)
+record_specific_app("game.exe", "game_audio.wav", 30)
+
+# Example: Record browser audio only
+record_specific_app("firefox", "browser_audio.wav", 15)
+```
+
 ### Game Streaming Audio Mixer
 
 ```python
