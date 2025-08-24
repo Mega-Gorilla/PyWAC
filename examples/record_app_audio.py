@@ -185,6 +185,7 @@ Examples:
             else:
                 print("[NOTE] PyPAC currently records all system audio")
                 print("       Process-specific capture is under development")
+                print("       You can mute other apps to isolate audio")
         else:
             print(f"[WARNING] Application '{args.app_name}' not found")
             

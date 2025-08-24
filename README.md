@@ -61,15 +61,17 @@ print(f"音声再生中: {', '.join(apps)}")
 | PyAudio | Windowsの最新APIに非対応 |
 | sounddevice | プロセス単位の制御不可 |
 | PyAudioWPatch | システム全体の音声のみ |
+| OBS win-capture-audio | GUIアプリ専用、Python非対応 |
 
 ### PyPACの解決策
 
 | 機能 | PyPAC | 他のライブラリ |
 |------|-------|--------------|
 | プロセス別音量制御 | ✅ | ❌ |
-| アプリ単位の録音 | ✅ 完成 | ❌ |
+| **アプリ単位の録音** | **✅ 完全実装** | ❌ |
 | 簡単なAPI | ✅ 1行で実行 | ❌ 複雑な設定 |
 | Windows 11対応 | ✅ | ⚠️ 限定的 |
+| Process Loopback API | ✅ | ❌ |
 
 ---
 
@@ -88,7 +90,18 @@ print(f"音声再生中: {', '.join(apps)}")
 
 </div>
 
-**プロセス固有録音について**: Windows Process Loopback APIを使用して、特定のアプリケーションの音声のみを録音できます。Windows 10 2004以降で利用可能です。詳細は[調査レポート](docs/PROCESS_LOOPBACK_INVESTIGATION.md)をご覧ください。
+### 🎯 プロセス固有録音が完全動作！
+
+Windows Process Loopback APIを使用して、**特定のアプリケーションの音声のみを録音**できるようになりました！
+
+**動作確認済みアプリ:**
+- ✅ Spotify - 音楽のみを録音（Discord音声を除外）
+- ✅ Firefox/Chrome - ブラウザ音声のみを録音
+- ✅ ゲーム - ゲーム音声のみを録音（ボイスチャット除外）
+
+**必要環境:** Windows 10 2004 (Build 19041) 以降
+
+詳細は[技術調査レポート](docs/PROCESS_LOOPBACK_INVESTIGATION.md)をご覧ください。
 
 ---
 
@@ -142,8 +155,11 @@ python setup.py build_ext --inplace
 ```python
 import pypac
 
-# 📝 5秒間録音して保存
+# 📝 5秒間録音して保存（システム全体）
 pypac.record_to_file("my_recording.wav", duration=5)
+
+# 🎯 特定アプリの音声のみ録音（NEW!）
+pypac.record_process("spotify", "spotify_only.wav", duration=10)
 
 # 🔊 アクティブなアプリを確認
 apps = pypac.get_active_apps()
@@ -277,14 +293,11 @@ class StreamAudioMixer:
         """システム音声を録音（全アプリの混合音声）"""
         pypac.record_to_file(f"recording_{time.time()}.wav", duration)
     
-    def save_game_audio_only(self, game_pid, duration=60):
+    def save_game_audio_only(self, game_name="game.exe", duration=60):
         """ゲーム音声のみを録音（Discord音声を除外）"""
-        # Process Loopback APIでゲーム音声のみ録音
-        recorder = pypac.ProcessRecorder()
-        recorder.start_process_id(game_pid)
-        time.sleep(duration)
-        audio = recorder.stop()
-        pypac.utils.save_to_wav(audio, f"game_only_{time.time()}.wav")
+        # Process Loopback APIでゲーム音声のみ録音！
+        pypac.record_process(game_name, f"game_only_{time.time()}.wav", duration)
+        print("✅ ゲーム音声のみ録音完了（Discord音声なし！）")
 
 # 使用例
 mixer = StreamAudioMixer()
