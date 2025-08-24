@@ -157,6 +157,48 @@ def unmute_app(app_name: str) -> bool:
 
 # Audio recording functions
 
+def _record_with_loopback(pid: int, duration: float) -> Optional[List[float]]:
+    """
+    Internal function to record audio using process loopback.
+    
+    Args:
+        pid: Process ID (0 for system-wide)
+        duration: Recording duration in seconds
+        
+    Returns:
+        List of audio samples or None if failed
+    """
+    try:
+        loopback = _import_process_loopback()
+        if loopback is None:
+            return None
+        
+        import numpy as np
+        import time
+        
+        # Create capture instance
+        capture = loopback.ProcessCapture()
+        
+        # Start capturing
+        if not capture.start(pid):
+            return None
+        
+        # Record for specified duration
+        time.sleep(duration)
+        
+        # Get captured audio
+        audio_data = capture.get_buffer()
+        capture.stop()
+        
+        # Convert to list if needed
+        if isinstance(audio_data, np.ndarray):
+            return audio_data.tolist()
+        return audio_data
+        
+    except Exception:
+        return None
+
+
 def record_audio(duration: float) -> List[float]:
     """
     Record system-wide audio for a specified duration.
@@ -171,42 +213,15 @@ def record_audio(duration: float) -> List[float]:
         >>> audio_data = pypac.record_audio(5)  # Record 5 seconds
         >>> print(f"Recorded {len(audio_data)} samples")
     """
-    # Use process_loopback_v2 with PID=0 for system-wide recording
-    try:
-        loopback = _import_process_loopback()
-        if loopback is None:
-            # Fallback to old method if module not available
-            recorder = _get_audio_recorder()
-            return recorder.record(duration)
-        
-        import numpy as np
-        import time
-        
-        # Create capture instance
-        capture = loopback.ProcessCapture()
-        
-        # Start capturing with PID=0 for system-wide
-        if not capture.start(0):
-            print("Failed to start system-wide capture, falling back to old method")
-            recorder = _get_audio_recorder()
-            return recorder.record(duration)
-        
-        # Record for specified duration
-        time.sleep(duration)
-        
-        # Get captured audio
-        audio_data = capture.get_buffer()
-        capture.stop()
-        
-        # Convert to list if needed
-        if isinstance(audio_data, np.ndarray):
-            return audio_data.tolist()
+    # Try using process loopback with PID=0 for system-wide recording
+    audio_data = _record_with_loopback(0, duration)
+    
+    if audio_data is not None:
         return audio_data
-        
-    except Exception as e:
-        print(f"Error in system recording: {e}, falling back to old method")
-        recorder = _get_audio_recorder()
-        return recorder.record(duration)
+    
+    # Fallback to old method if loopback failed
+    recorder = _get_audio_recorder()
+    return recorder.record(duration)
 
 
 def record_to_file(filename: str, duration: float) -> bool:
@@ -224,14 +239,8 @@ def record_to_file(filename: str, duration: float) -> bool:
         >>> pypac.record_to_file("output.wav", 10)  # Record 10 seconds
         True
     """
-    # Use process_loopback_v2 with PID=0 for system-wide recording
-    try:
-        # Use record_process_id with PID=0 for system-wide recording
-        return record_process_id(0, filename, duration)
-    except Exception as e:
-        print(f"Error in system recording: {e}, falling back to old method")
-        recorder = _get_audio_recorder()
-        return recorder.record_to_file(filename, duration)
+    # Use record_process_id with PID=0 for system-wide recording
+    return record_process_id(0, filename, duration)
 
 
 def record_process(process_name: str, filename: str, duration: float) -> bool:
@@ -257,7 +266,6 @@ def record_process(process_name: str, filename: str, duration: float) -> bool:
     try:
         loopback = _import_process_loopback()
         if loopback is None:
-            print("Process-specific recording not available. Module process_loopback_v2 not found.")
             return False
         
         # Find process by name
@@ -271,16 +279,11 @@ def record_process(process_name: str, filename: str, duration: float) -> bool:
                 break
         
         if target_pid is None:
-            print(f"Process '{process_name}' not found in audio sessions")
             return False
         
         return record_process_id(target_pid, filename, duration)
         
-    except ImportError:
-        print("Process-specific recording not available. Module process_loopback_v2 not found.")
-        return False
-    except Exception as e:
-        print(f"Failed to record process audio: {e}")
+    except Exception:
         return False
 
 
@@ -304,36 +307,30 @@ def record_process_id(pid: int, filename: str, duration: float) -> bool:
         Requires Windows 10 version 2004 (Build 19041) or later.
         Uses Process Loopback API for process-specific audio capture.
     """
+    # Try using process loopback
+    audio_data = _record_with_loopback(pid, duration)
+    
+    if audio_data is None:
+        # If PID is 0, try fallback for system recording
+        if pid == 0:
+            try:
+                recorder = _get_audio_recorder()
+                return recorder.record_to_file(filename, duration)
+            except Exception:
+                pass
+        return False
+    
+    # Save to WAV file
     try:
-        loopback = _import_process_loopback()
-        if loopback is None:
-            print("Process-specific recording not available. Module process_loopback_v2 not found.")
-            return False
         import numpy as np
         import wave
-        import time
-        
-        # Create capture instance
-        capture = loopback.ProcessCapture()
-        
-        # Start capturing
-        if not capture.start(pid):
-            print(f"Failed to start capture for PID {pid}")
-            return False
-        
-        # Record for specified duration
-        time.sleep(duration)
-        
-        # Get captured audio
-        audio_data = capture.get_buffer()
-        capture.stop()
-        
-        if len(audio_data) == 0:
-            print("No audio data captured")
-            return False
         
         # Convert to numpy array if needed
         audio_array = np.array(audio_data, dtype=np.float32)
+        
+        # Check if we have data
+        if len(audio_array) == 0:
+            return False
         
         # Save to WAV file
         audio_int16 = (audio_array * 32767).astype(np.int16)
@@ -346,11 +343,7 @@ def record_process_id(pid: int, filename: str, duration: float) -> bool:
         
         return True
         
-    except ImportError:
-        print("Process-specific recording not available. Module process_loopback_v2 not found.")
-        return False
-    except Exception as e:
-        print(f"Failed to record process audio: {e}")
+    except Exception:
         return False
 
 

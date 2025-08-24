@@ -110,12 +110,5 @@ setup(
     # Keywords for PyPI
     keywords="audio windows wasapi recording capture volume process loopback",
     
-    # Entry points (optional command-line tools)
-    entry_points={
-        "console_scripts": [
-            "pypac-record=pypac.cli:record_command",
-            "pypac-list=pypac.cli:list_command",
-            "pypac-volume=pypac.cli:volume_command",
-        ],
-    },
+    # Entry points are defined in pyproject.toml
 )

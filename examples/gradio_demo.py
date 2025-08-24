@@ -11,7 +11,6 @@ import io
 import time
 import os
 import json
-import psutil
 from datetime import datetime
 from pathlib import Path
 import threading

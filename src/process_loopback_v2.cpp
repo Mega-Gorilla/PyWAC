@@ -121,33 +121,29 @@ public:
     
     bool Start(DWORD processId, bool includeTree = false) {
         if (isCapturing) {
-            std::cerr << "Already capturing" << std::endl;
-            return false;
+            return false;  // Already capturing
         }
         
         targetProcessId = processId;
         includeProcessTree = includeTree;
         
-        std::cout << "Starting capture for PID: " << processId << std::endl;
+        // Starting capture for specified PID
         
         // Initialize audio client with process loopback
         HRESULT hr = InitializeProcessLoopback();
         if (FAILED(hr)) {
-            std::cerr << "Failed to initialize process loopback: 0x" << std::hex << hr << std::endl;
-            return false;
+            return false;  // Failed to initialize process loopback
         }
         
         // Start capture thread
         isCapturing = true;
         captureThread = std::thread(&ProcessCapture::CaptureThreadFunc, this);
         
-        std::cout << "Capture started successfully" << std::endl;
-        return true;
+        return true;  // Capture started successfully
     }
     
     void Stop() {
         if (isCapturing) {
-            std::cout << "Stopping capture..." << std::endl;
             isCapturing = false;
             
             if (captureThread.joinable()) {
@@ -158,7 +154,6 @@ public:
                 audioClient->Stop();
             }
             
-            std::cout << "Capture stopped" << std::endl;
         }
     }
     
@@ -235,39 +230,33 @@ public:
     
 private:
     HRESULT InitializeSystemLoopback() {
-        std::cout << "Using system-wide loopback for PID 0" << std::endl;
+        // Using system-wide loopback for PID 0
         
         ComPtr<IMMDeviceEnumerator> deviceEnumerator;
         HRESULT hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr,
                                      CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&deviceEnumerator));
         if (FAILED(hr)) {
-            std::cerr << "Failed to create device enumerator: 0x" << std::hex << hr << std::endl;
-            return hr;
+            return hr;  // Failed to create device enumerator
         }
         
         ComPtr<IMMDevice> device;
         hr = deviceEnumerator->GetDefaultAudioEndpoint(eRender, eConsole, &device);
         if (FAILED(hr)) {
-            std::cerr << "Failed to get default audio endpoint: 0x" << std::hex << hr << std::endl;
-            return hr;
+            return hr;  // Failed to get default audio endpoint
         }
         
         hr = device->Activate(__uuidof(IAudioClient), CLSCTX_INPROC_SERVER,
                              nullptr, reinterpret_cast<void**>(audioClient.GetAddressOf()));
         if (FAILED(hr)) {
-            std::cerr << "Failed to activate audio client: 0x" << std::hex << hr << std::endl;
-            return hr;
+            return hr;  // Failed to activate audio client
         }
         
         hr = audioClient->GetMixFormat(&waveFormat);
         if (FAILED(hr)) {
-            std::cerr << "GetMixFormat failed: 0x" << std::hex << hr << std::endl;
-            return hr;
+            return hr;  // GetMixFormat failed
         }
         
-        std::cout << "Audio format: " << waveFormat->nSamplesPerSec << "Hz, " 
-                  << waveFormat->nChannels << " channels, "
-                  << waveFormat->wBitsPerSample << " bits" << std::endl;
+        // Audio format acquired successfully
         
         hr = audioClient->Initialize(
             AUDCLNT_SHAREMODE_SHARED,
@@ -278,28 +267,24 @@ private:
             nullptr);
         
         if (FAILED(hr)) {
-            std::cerr << "Initialize failed: 0x" << std::hex << hr << std::endl;
-            return hr;
+            return hr;  // Initialize failed
         }
         
-        std::cout << "System loopback initialized" << std::endl;
+        // System loopback initialized
         
         hr = audioClient->GetService(__uuidof(IAudioCaptureClient),
                                     reinterpret_cast<void**>(captureClient.GetAddressOf()));
         
         if (FAILED(hr)) {
-            std::cerr << "GetService failed: 0x" << std::hex << hr << std::endl;
-            return hr;
+            return hr;  // GetService failed
         }
         
         hr = audioClient->Start();
         if (FAILED(hr)) {
-            std::cerr << "Start failed: 0x" << std::hex << hr << std::endl;
-            return hr;
+            return hr;  // Start failed
         }
         
-        std::cout << "System loopback started" << std::endl;
-        return S_OK;
+        return S_OK;  // System loopback started successfully
     }
     
     HRESULT InitializeProcessLoopback() {
@@ -317,8 +302,7 @@ private:
         activationParams.ProcessLoopbackParams.ProcessLoopbackMode = 
             PROCESS_LOOPBACK_MODE_INCLUDE_TARGET_PROCESS_TREE;
         
-        std::cout << "Target PID: " << targetProcessId << std::endl;
-        std::cout << "Include tree: " << (includeProcessTree ? "yes" : "no") << std::endl;
+        // Configure activation parameters
         
         PROPVARIANT propvariant = {};
         propvariant.vt = VT_BLOB;
@@ -336,27 +320,23 @@ private:
             &asyncOp);
         
         if (FAILED(hr)) {
-            std::cerr << "ActivateAudioInterfaceAsync failed: 0x" << std::hex << hr << std::endl;
-            return hr;
+            return hr;  // ActivateAudioInterfaceAsync failed
         }
         
-        std::cout << "Waiting for activation..." << std::endl;
+        // Waiting for activation
         
         completionHandler->Wait();
         
         if (FAILED(completionHandler->activateResult)) {
-            std::cerr << "Activation failed with result: 0x" << std::hex 
-                     << completionHandler->activateResult << std::endl;
-            return completionHandler->activateResult;
+            return completionHandler->activateResult;  // Activation failed
         }
         
         audioClient = completionHandler->audioClient;
         if (!audioClient) {
-            std::cerr << "No audio client obtained" << std::endl;
-            return E_FAIL;
+            return E_FAIL;  // No audio client obtained
         }
         
-        std::cout << "Audio client obtained successfully" << std::endl;
+        // Audio client obtained successfully
         
         // Use float format as per OBS implementation
         if (waveFormat) {
@@ -420,7 +400,7 @@ private:
     }
     
     void CaptureThreadFunc() {
-        std::cout << "Capture thread started" << std::endl;
+        // Capture thread started
         
         // Set thread priority for audio
         DWORD taskIndex = 0;
@@ -436,16 +416,11 @@ private:
             HRESULT hr = captureClient->GetNextPacketSize(&packetLength);
             
             if (FAILED(hr)) {
-                std::cerr << "GetNextPacketSize failed: 0x" << std::hex << hr << std::endl;
-                break;
+                break;  // GetNextPacketSize failed
             }
             
-            // Debug output every 100 iterations
-            if (++debugCounter % 100 == 0) {
-                std::cout << "Debug: Packets processed=" << packetsProcessed 
-                          << ", Silent=" << silentPackets 
-                          << ", Buffer size=" << audioBuffer.size() << std::endl;
-            }
+            // Update debug counters
+            ++debugCounter;
             
             while (packetLength > 0) {
                 BYTE* data = nullptr;
@@ -467,14 +442,7 @@ private:
                         // Convert to float samples
                         std::vector<float> samples;
                         
-                        // Debug: Log format once
-                        static bool formatLogged = false;
-                        if (!formatLogged) {
-                            std::cout << "Audio format tag: 0x" << std::hex << waveFormat->wFormatTag 
-                                      << ", Expected FLOAT: 0x" << WAVE_FORMAT_IEEE_FLOAT 
-                                      << ", Expected PCM: 0x" << WAVE_FORMAT_PCM << std::dec << std::endl;
-                            formatLogged = true;
-                        }
+                        // Handle different audio formats
                         
                         if (waveFormat->wFormatTag == WAVE_FORMAT_IEEE_FLOAT || 
                             waveFormat->wFormatTag == WAVE_FORMAT_EXTENSIBLE) {
@@ -511,15 +479,13 @@ private:
                     
                     captureClient->ReleaseBuffer(framesAvailable);
                 } else if (hr != AUDCLNT_S_BUFFER_EMPTY) {
-                    std::cerr << "GetBuffer failed: 0x" << std::hex << hr << std::endl;
-                    break;
+                    break;  // GetBuffer failed
                 }
                 
                 // Get next packet size
                 hr = captureClient->GetNextPacketSize(&packetLength);
                 if (FAILED(hr)) {
-                    std::cerr << "GetNextPacketSize failed: 0x" << std::hex << hr << std::endl;
-                    break;
+                    break;  // GetNextPacketSize failed
                 }
             }
             
@@ -533,9 +499,7 @@ private:
             AvRevertMmThreadCharacteristics(hTask);
         }
         
-        std::cout << "Capture thread ended. Total packets: " << packetsProcessed 
-                  << ", Silent: " << silentPackets 
-                  << ", Final buffer size: " << audioBuffer.size() << std::endl;
+        // Capture thread ended
     }
     
     static std::string GetProcessName(DWORD processId) {
