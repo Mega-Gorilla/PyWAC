@@ -1,79 +1,110 @@
 """
 PyPAC Volume Controller - Interactive volume control for running applications
+Uses the high-level pypac package API for easy audio session management
 """
 
+import pypac
 import sys
-import os
-
-# Add parent directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'dist'))
 
 def main():
-    try:
-        import pypac
-    except ImportError as e:
-        print(f"Error: {e}")
-        print("Please build the module: python setup.py build_ext --inplace")
-        return
-    
     print("=" * 60)
     print("PYPAC VOLUME CONTROLLER")
     print("=" * 60)
+    print(f"Version: {pypac.__version__}")
+    print()
     
-    # Get sessions
-    enumerator = pypac.SessionEnumerator()
-    sessions = enumerator.enumerate_sessions()
+    # Get active applications
+    active_apps = pypac.get_active_apps()
     
-    # Filter active sessions
-    active_sessions = [s for s in sessions if s.state == 1]
-    
-    if not active_sessions:
+    if not active_apps:
         print("No active audio sessions found.")
         print("Please play audio in an application and try again.")
         return
     
+    # Get detailed session info for active apps
+    sessions = pypac.list_audio_sessions(active_only=True)
+    
     # Display sessions
-    print("\nActive Audio Sessions:")
-    for i, session in enumerate(active_sessions, 1):
-        mute_status = "[MUTED]" if session.muted else f"[VOL: {session.volume:.0%}]"
-        print(f"{i}. {session.process_name} - {mute_status}")
+    print("Active Audio Sessions:")
+    for i, session in enumerate(sessions, 1):
+        mute_status = "[MUTED]" if session['is_muted'] else f"[VOL: {session['volume_percent']:.0f}%]"
+        print(f"{i}. {session['process_name']} - {mute_status}")
     
     # User selection
     print("\nSelect an application to control (number):")
     try:
         choice = int(input("> ")) - 1
-        if 0 <= choice < len(active_sessions):
-            selected = active_sessions[choice]
+        if 0 <= choice < len(sessions):
+            selected = sessions[choice]
+            app_name = selected['process_name']
             
-            print(f"\nControlling: {selected.process_name}")
-            print("Enter new volume (0-100) or 'm' to toggle mute:")
+            print(f"\nControlling: {app_name}")
+            print("Commands:")
+            print("  0-100  : Set volume to specific percentage")
+            print("  +/-N   : Adjust volume by N percent (e.g., +10 or -20)")
+            print("  m      : Toggle mute")
+            print("  q      : Quit")
             
-            action = input("> ").strip().lower()
-            
-            if action == 'm':
-                # Toggle mute
-                new_mute = not selected.muted
-                if enumerator.set_session_mute(selected.process_id, new_mute):
-                    print(f"[OK] {'Muted' if new_mute else 'Unmuted'} {selected.process_name}")
-                else:
-                    print("[ERROR] Failed to change mute state")
-            else:
-                # Set volume
-                try:
-                    volume = int(action)
-                    if 0 <= volume <= 100:
-                        if enumerator.set_session_volume(selected.process_id, volume / 100):
-                            print(f"[OK] Set {selected.process_name} volume to {volume}%")
+            while True:
+                current_vol = pypac.get_app_volume(app_name)
+                if current_vol is not None:
+                    print(f"\nCurrent volume: {current_vol * 100:.0f}%")
+                
+                action = input("> ").strip().lower()
+                
+                if action == 'q':
+                    break
+                elif action == 'm':
+                    # Toggle mute using SessionManager for mute control
+                    manager = pypac.SessionManager()
+                    session = manager.find_session(app_name)
+                    if session:
+                        new_mute = not session.is_muted
+                        if manager.mute_session(app_name, new_mute):
+                            print(f"[OK] {'Muted' if new_mute else 'Unmuted'} {app_name}")
                         else:
-                            print("[ERROR] Failed to change volume")
-                    else:
-                        print("[ERROR] Volume must be between 0 and 100")
-                except ValueError:
-                    print("[ERROR] Invalid input")
+                            print("[ERROR] Failed to change mute state")
+                elif action.startswith('+') or action.startswith('-'):
+                    # Adjust volume
+                    try:
+                        delta = float(action) / 100  # Convert percentage to fraction
+                        new_volume = pypac.adjust_volume(app_name, delta)
+                        if new_volume is not None:
+                            print(f"[OK] Adjusted {app_name} volume to {new_volume * 100:.0f}%")
+                        else:
+                            print("[ERROR] Failed to adjust volume")
+                    except ValueError:
+                        print("[ERROR] Invalid adjustment value")
+                else:
+                    # Set absolute volume
+                    try:
+                        volume = float(action)
+                        if 0 <= volume <= 100:
+                            if pypac.set_app_volume(app_name, volume / 100):
+                                print(f"[OK] Set {app_name} volume to {volume:.0f}%")
+                            else:
+                                print("[ERROR] Failed to change volume")
+                        else:
+                            print("[ERROR] Volume must be between 0 and 100")
+                    except ValueError:
+                        print("[ERROR] Invalid input. Enter a number 0-100, +/-N, 'm', or 'q'")
         else:
             print("[ERROR] Invalid selection")
-    except (ValueError, EOFError):
-        print("[ERROR] Invalid input")
+    except (ValueError, EOFError, KeyboardInterrupt):
+        print("\n[INFO] Exiting...")
+    except Exception as e:
+        print(f"[ERROR] {e}")
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except ImportError as e:
+        print("=" * 60)
+        print("ERROR: Failed to import pypac module")
+        print("=" * 60)
+        print(f"Details: {e}")
+        print("\nPlease install the package:")
+        print("  pip install -e .")
+        print("\nOr build the module:")
+        print("  python setup.py build_ext --inplace")
+        sys.exit(1)

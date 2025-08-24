@@ -1,0 +1,4 @@
+[console_scripts]
+pypac-list = pypac.cli:list_command
+pypac-record = pypac.cli:record_command
+pypac-volume = pypac.cli:volume_command
