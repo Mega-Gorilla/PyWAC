@@ -1,119 +1,108 @@
 #!/usr/bin/env python
 """
-PyPAC App Audio Recorder - Record audio from a specific application
+PyPAC App Audio Recorder - Record audio from a specific application using package API
 Usage: python record_app_audio.py [app_name] [duration] [output_file]
 Example: python record_app_audio.py firefox 5 firefox_audio.wav
 """
 
+import pypac
 import sys
 import os
 import time
-import wave
-import struct
 import argparse
 from datetime import datetime
 
-# Add parent directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'dist'))
-
-def find_app_session(enumerator, app_name):
-    """Find audio session for specified application"""
-    sessions = enumerator.enumerate_sessions()
+def find_app_session(app_name):
+    """Find audio session for specified application using package API"""
+    sessions = pypac.list_audio_sessions()
     
     # Search for matching process name (case-insensitive)
     app_name_lower = app_name.lower()
     for session in sessions:
-        if app_name_lower in session.process_name.lower():
+        if app_name_lower in session['process_name'].lower():
             return session
     
     return None
 
-def save_to_wav(audio_data, filename, sample_rate=48000, channels=2):
-    """Save audio data to WAV file"""
-    # Convert float32 audio to int16
-    audio_int16 = []
-    for sample in audio_data:
-        # Clip to [-1, 1] range
-        sample = max(-1.0, min(1.0, sample))
-        # Convert to int16
-        audio_int16.append(int(sample * 32767))
-    
-    # Write WAV file
-    with wave.open(filename, 'wb') as wav_file:
-        wav_file.setnchannels(channels)
-        wav_file.setsampwidth(2)  # 16-bit
-        wav_file.setframerate(sample_rate)
-        
-        # Pack audio data as bytes
-        packed_data = struct.pack('<%dh' % len(audio_int16), *audio_int16)
-        wav_file.writeframes(packed_data)
-
 def record_system_audio(duration_seconds=5, output_file="recording.wav"):
-    """Record system audio for specified duration"""
-    try:
-        import pypac
-        import numpy as np
-    except ImportError as e:
-        print(f"[ERROR] Failed to import required modules: {e}")
-        print("Please ensure pypac is built and numpy is installed")
-        return False
-    
-    # Start loopback capture
-    loopback = pypac.SimpleLoopback()
-    
-    if not loopback.start():
-        print("[ERROR] Failed to start audio capture")
-        print("Try running as administrator")
-        return False
+    """Record system audio for specified duration using package API"""
     
     print(f"[RECORDING] Capturing system audio for {duration_seconds} seconds...")
     
-    # Collect audio data
-    all_audio = []
-    start_time = time.time()
+    # Use the high-level API to record directly to file
+    success = pypac.record_to_file(output_file, duration_seconds)
+    
+    if not success:
+        print("[ERROR] Failed to record audio")
+        print("Try running as administrator or check if audio is playing")
+        return False
+    
+    # Check file was created and get info
+    if os.path.exists(output_file):
+        file_size = os.path.getsize(output_file)
+        print(f"[SUCCESS] Audio saved to {output_file}")
+        print(f"  Duration: {duration_seconds} seconds")
+        print(f"  File size: {file_size / 1024:.2f} KB")
+        return True
+    else:
+        print("[ERROR] Recording file was not created")
+        return False
+
+def record_with_progress(duration_seconds=5, output_file="recording.wav"):
+    """Record audio with progress display using AudioRecorder class"""
+    
+    recorder = pypac.AudioRecorder()
+    
+    print(f"[RECORDING] Capturing system audio for {duration_seconds} seconds...")
+    
+    # Start recording
+    if not recorder.start(duration=duration_seconds):
+        print("[ERROR] Failed to start recording")
+        print("Try running as administrator")
+        return False
+    
+    # Show progress
     last_update = 0
-    
-    while time.time() - start_time < duration_seconds:
-        # Get audio buffer
-        buffer = loopback.get_buffer()
+    while recorder.is_recording:
+        elapsed = recorder.recording_time
+        samples = recorder.sample_count
         
-        if len(buffer) > 0:
-            all_audio.extend(buffer)
-            
-            # Show progress
-            elapsed = time.time() - start_time
-            if elapsed - last_update >= 1.0:
-                remaining = duration_seconds - elapsed
-                print(f"  [{int(elapsed)}s / {duration_seconds}s] Recording... ({int(remaining)}s remaining)")
-                last_update = elapsed
+        if elapsed - last_update >= 1.0:
+            remaining = duration_seconds - elapsed
+            progress = int((elapsed / duration_seconds) * 30)
+            bar = "█" * progress + "░" * (30 - progress)
+            print(f"  [{bar}] {elapsed:.0f}s / {duration_seconds}s ({samples:,} samples)", end='\r')
+            last_update = elapsed
         
-        # Small sleep to prevent CPU overuse
-        time.sleep(0.01)
+        time.sleep(0.1)
     
-    # Stop capture
-    loopback.stop()
+    print()  # New line after progress
     
-    if len(all_audio) == 0:
+    # Stop and save
+    audio_data = recorder.stop()
+    
+    if len(audio_data) == 0:
         print("[WARNING] No audio captured")
         return False
     
-    # Save to WAV
-    print(f"[SAVING] Writing {len(all_audio)} samples to {output_file}...")
-    save_to_wav(all_audio, output_file)
+    # Save to file
+    print(f"[SAVING] Writing {len(audio_data):,} samples to {output_file}...")
+    saved_file = recorder.save(output_file)
     
-    # Calculate file size and duration
-    file_size = os.path.getsize(output_file)
-    actual_duration = len(all_audio) / (48000 * 2)  # 48kHz, stereo
+    if saved_file and os.path.exists(saved_file):
+        file_size = os.path.getsize(saved_file)
+        actual_duration = len(audio_data) / (48000 * 2)  # 48kHz, stereo
+        
+        print(f"[SUCCESS] Audio saved to {saved_file}")
+        print(f"  Duration: {actual_duration:.2f} seconds")
+        print(f"  File size: {file_size / 1024:.2f} KB")
+        return True
     
-    print(f"[SUCCESS] Audio saved to {output_file}")
-    print(f"  Duration: {actual_duration:.2f} seconds")
-    print(f"  File size: {file_size / 1024:.2f} KB")
-    
-    return True
+    return False
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Record audio from a specific application or system',
+        description='Record audio from a specific application or system using PyPAC',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -122,6 +111,7 @@ Examples:
   %(prog)s firefox 10         # Record 10s from Firefox
   %(prog)s firefox 10 out.wav # Record 10s from Firefox to out.wav
   %(prog)s --list             # List all active audio sessions
+  %(prog)s --progress         # Show recording progress bar
         """
     )
     
@@ -133,34 +123,35 @@ Examples:
                        help='Output WAV filename (default: app_recording.wav)')
     parser.add_argument('--list', '-l', action='store_true',
                        help='List all audio sessions and exit')
+    parser.add_argument('--progress', '-p', action='store_true',
+                       help='Show progress bar during recording')
     
     args = parser.parse_args()
     
-    # Import pypac
-    try:
-        import pypac
-    except ImportError as e:
-        print(f"[ERROR] Failed to import pypac: {e}")
-        print("Please build the module: python setup.py build_ext --inplace")
-        return 1
+    # Print version
+    print(f"PyPAC Audio Recorder v{pypac.__version__}")
+    print("=" * 60)
     
     # List sessions mode
     if args.list:
-        enumerator = pypac.SessionEnumerator()
-        sessions = enumerator.enumerate_sessions()
+        sessions = pypac.list_audio_sessions()
         
         print("[AUDIO SESSIONS]")
         active_count = 0
         for session in sessions:
-            state = "ACTIVE" if session.state == 1 else "INACTIVE"
-            print(f"  [{state}] {session.process_name} (PID: {session.process_id})")
-            if session.state == 1:
+            state = "ACTIVE" if session['is_active'] else "INACTIVE"
+            vol_info = f"Vol: {session['volume_percent']:.0f}%"
+            mute_info = "[MUTED]" if session['is_muted'] else ""
+            print(f"  [{state}] {session['process_name']} (PID: {session['process_id']}) {vol_info} {mute_info}")
+            if session['is_active']:
                 active_count += 1
         
-        if active_count == 0:
-            print("\nNo active audio sessions. Play audio in an application and try again.")
+        # Show active apps summary
+        active_apps = pypac.get_active_apps()
+        if active_apps:
+            print(f"\n{len(active_apps)} active application(s): {', '.join(active_apps)}")
         else:
-            print(f"\n{active_count} active session(s) found")
+            print("\nNo active audio sessions. Play audio in an application and try again.")
         return 0
     
     # Generate output filename
@@ -183,13 +174,12 @@ Examples:
     if args.app_name:
         print(f"[INFO] Looking for application: {args.app_name}")
         
-        enumerator = pypac.SessionEnumerator()
-        session = find_app_session(enumerator, args.app_name)
+        session = find_app_session(args.app_name)
         
         if session:
-            print(f"[FOUND] {session.process_name} (PID: {session.process_id})")
+            print(f"[FOUND] {session['process_name']} (PID: {session['process_id']})")
             
-            if session.state != 1:
+            if not session['is_active']:
                 print("[WARNING] Application is not currently playing audio")
                 print("         Recording system audio instead...")
             else:
@@ -197,12 +187,15 @@ Examples:
                 print("       Process-specific capture is under development")
         else:
             print(f"[WARNING] Application '{args.app_name}' not found")
-            print("          Available applications:")
             
-            sessions = enumerator.enumerate_sessions()
-            for s in sessions:
-                if s.state == 1:
-                    print(f"            - {s.process_name}")
+            # Show available apps
+            active_apps = pypac.get_active_apps()
+            if active_apps:
+                print("          Available applications:")
+                for app in active_apps:
+                    print(f"            - {app}")
+            else:
+                print("          No applications currently playing audio")
             
             print("\n[INFO] Recording all system audio instead...")
     
@@ -211,9 +204,27 @@ Examples:
     print(f"[CONFIG] Output: {output_file}")
     print("")
     
-    success = record_system_audio(args.duration, output_file)
+    # Use progress recording if requested
+    if args.progress:
+        success = record_with_progress(args.duration, output_file)
+    else:
+        success = record_system_audio(args.duration, output_file)
     
     return 0 if success else 1
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except ImportError as e:
+        print("=" * 60)
+        print("ERROR: Failed to import pypac module")
+        print("=" * 60)
+        print(f"Details: {e}")
+        print("\nPlease install the package:")
+        print("  pip install -e .")
+        print("\nOr build the module:")
+        print("  python setup.py build_ext --inplace")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        print("\n[INFO] Recording cancelled by user")
+        sys.exit(0)

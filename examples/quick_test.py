@@ -1,32 +1,34 @@
 """
-PyPAC Quick Test - Simple functionality check
+PyPAC Quick Test - Simple functionality check using package API
 """
 
-import sys
-import os
-
-# Add parent directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'dist'))
+import pypac
 
 try:
-    import pypac
     print("[OK] PyPAC module loaded successfully!")
+    print(f"     Version: {pypac.__version__}")
     
-    # Quick test
-    enumerator = pypac.SessionEnumerator()
-    sessions = enumerator.enumerate_sessions()
+    # Use the high-level API to list sessions
+    sessions = pypac.list_audio_sessions()
     
     print(f"\n[INFO] Found {len(sessions)} audio sessions:")
     for session in sessions[:5]:  # Show first 5
-        status = "[ACTIVE]" if session.state == 1 else "[INACTIVE]"
-        print(f"  {status} {session.process_name} (PID: {session.process_id})")
+        status = "[ACTIVE]" if session['is_active'] else "[INACTIVE]"
+        print(f"  {status} {session['process_name']} (PID: {session['process_id']})")
     
     if len(sessions) > 5:
         print(f"  ... and {len(sessions) - 5} more")
     
+    # Test finding active apps
+    active_apps = pypac.get_active_apps()
+    if active_apps:
+        print(f"\n[INFO] Active applications: {', '.join(active_apps)}")
+    else:
+        print("\n[INFO] No applications currently playing audio")
+    
 except ImportError as e:
     print(f"[ERROR] Failed to import PyPAC: {e}")
-    print("\nPlease build the module first:")
-    print("  python setup.py build_ext --inplace")
+    print("\nPlease install the package:")
+    print("  pip install -e .")
 except Exception as e:
     print(f"[ERROR] Error: {e}")

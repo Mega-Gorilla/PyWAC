@@ -373,7 +373,7 @@ public:
     }
 };
 
-PYBIND11_MODULE(pypac, m) {
+PYBIND11_MODULE(_pypac_native, m) {
     m.doc() = "PyPAC - Python Process Audio Capture for Windows";
     
     py::class_<AudioSessionInfo>(m, "AudioSessionInfo")
