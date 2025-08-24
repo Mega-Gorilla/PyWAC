@@ -23,7 +23,7 @@ import pypac
 # たった1行でオーディオ録音
 pypac.record_to_file("output.wav", duration=5)
 
-# 🎯 NEW! 特定アプリの音声だけを録音（Discord音声を除外！）
+# 特定アプリの音声だけを録音（Discord音声を除外！）
 pypac.record_process("game.exe", "game_only.wav", duration=10)
 
 # アプリの音量を調整
@@ -71,7 +71,7 @@ print(f"音声再生中: {', '.join(apps)}")
 | 機能 | PyPAC | 他のライブラリ |
 |------|-------|--------------|
 | プロセス別音量制御 | ✅ | ❌ |
-| **アプリ単位の録音** | **✅ 完全実装** | ❌ |
+| **アプリ単位の録音** | ✅ | ❌ |
 | 簡単なAPI | ✅ 1行で実行 | ❌ 複雑な設定 |
 | Windows 11対応 | ✅ | ⚠️ 限定的 |
 | Process Loopback API | ✅ | ❌ |
