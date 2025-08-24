@@ -31,7 +31,7 @@ python examples\quick_test.py
 3. **Windows 10/11**: Process Audio APIのサポート
 4. **Visual C++ Redistributable**: [ダウンロード](https://aka.ms/vs/17/release/vc_redist.x64.exe)
 
-## ⚠️ トラブルシューティング
+## トラブルシューティング
 
 ### ImportError: DLL load failed
 Visual C++ Redistributableをインストールしてください。

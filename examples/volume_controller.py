@@ -35,7 +35,7 @@ def main():
     # Display sessions
     print("\nActive Audio Sessions:")
     for i, session in enumerate(active_sessions, 1):
-        mute_status = "🔇 MUTED" if session.muted else f"🔊 {session.volume:.0%}"
+        mute_status = "[MUTED]" if session.muted else f"[VOL: {session.volume:.0%}]"
         print(f"{i}. {session.process_name} - {mute_status}")
     
     # User selection
@@ -54,26 +54,26 @@ def main():
                 # Toggle mute
                 new_mute = not selected.muted
                 if enumerator.set_session_mute(selected.process_id, new_mute):
-                    print(f"✅ {'Muted' if new_mute else 'Unmuted'} {selected.process_name}")
+                    print(f"[OK] {'Muted' if new_mute else 'Unmuted'} {selected.process_name}")
                 else:
-                    print("❌ Failed to change mute state")
+                    print("[ERROR] Failed to change mute state")
             else:
                 # Set volume
                 try:
                     volume = int(action)
                     if 0 <= volume <= 100:
                         if enumerator.set_session_volume(selected.process_id, volume / 100):
-                            print(f"✅ Set {selected.process_name} volume to {volume}%")
+                            print(f"[OK] Set {selected.process_name} volume to {volume}%")
                         else:
-                            print("❌ Failed to change volume")
+                            print("[ERROR] Failed to change volume")
                     else:
-                        print("❌ Volume must be between 0 and 100")
+                        print("[ERROR] Volume must be between 0 and 100")
                 except ValueError:
-                    print("❌ Invalid input")
+                    print("[ERROR] Invalid input")
         else:
-            print("❌ Invalid selection")
+            print("[ERROR] Invalid selection")
     except (ValueError, EOFError):
-        print("❌ Invalid input")
+        print("[ERROR] Invalid input")
 
 if __name__ == "__main__":
     main()
