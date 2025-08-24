@@ -23,13 +23,16 @@ import pypac
 # たった1行でオーディオ録音
 pypac.record_to_file("output.wav", duration=5)
 
+# 🎯 NEW! 特定アプリの音声だけを録音（Discord音声を除外！）
+pypac.record_process("game.exe", "game_only.wav", duration=10)
+
 # アプリの音量を調整
 pypac.set_app_volume("spotify", 0.5)
 
 # 実行中のオーディオセッションを確認
 apps = pypac.get_active_apps()
 print(f"音声再生中: {', '.join(apps)}")
-# 出力例: 音声再生中: Spotify.exe, Chrome.exe
+# 出力例: 音声再生中: Spotify.exe, Chrome.exe, Discord.exe
 ```
 
 **それだけです！** 複雑な設定は不要です。
@@ -161,6 +164,9 @@ pypac.record_to_file("my_recording.wav", duration=5)
 # 🎯 特定アプリの音声のみ録音（NEW!）
 pypac.record_process("spotify", "spotify_only.wav", duration=10)
 
+# プロセスIDで録音（より正確）
+pypac.record_process_id(51716, "spotify_by_pid.wav", duration=10)
+
 # 🔊 アクティブなアプリを確認
 apps = pypac.get_active_apps()
 print(f"音声再生中: {apps}")
@@ -264,6 +270,51 @@ if loopback.start():
 ---
 
 ## 💡 実用例
+
+### 🎯 プロセス固有録音の使い方（目玉機能！）
+
+```python
+import pypac
+import process_loopback_v2 as loopback
+
+# 方法1: 高レベルAPI（開発中）
+def record_specific_app(app_name, output_file, duration=10):
+    """特定アプリの音声のみを録音"""
+    pypac.record_process(app_name, output_file, duration)
+    print(f"✅ {app_name}の音声のみ録音完了！")
+
+# 方法2: 低レベルAPI（現在動作中）
+def record_with_process_loopback():
+    """Process Loopback APIを直接使用"""
+    # 音声セッションをリスト
+    processes = loopback.list_audio_processes()
+    
+    print("録音可能なアプリ:")
+    for proc in processes:
+        print(f"  - {proc.name} (PID: {proc.pid})")
+    
+    # Spotifyを録音（例）
+    spotify_pid = 51716  # 実際のPIDに置き換え
+    capture = loopback.ProcessCapture()
+    
+    if capture.start(spotify_pid):
+        print("録音開始...")
+        import time
+        time.sleep(10)  # 10秒録音
+        
+        audio_data = capture.get_buffer()
+        capture.stop()
+        
+        # WAVファイルに保存
+        pypac.utils.save_to_wav(audio_data, "spotify_only.wav")
+        print("✅ Spotifyの音声のみ保存完了！")
+
+# 使用例：ゲーム音声のみ録音（Discord音声なし）
+record_specific_app("game.exe", "game_audio.wav", 30)
+
+# 使用例：ブラウザ音声のみ録音
+record_specific_app("firefox", "browser_audio.wav", 15)
+```
 
 ### 🎮 ゲーム配信用オーディオミキサー
 

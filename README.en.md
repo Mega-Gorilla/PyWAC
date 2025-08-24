@@ -23,13 +23,16 @@ import pypac
 # Record audio with just one line
 pypac.record_to_file("output.wav", duration=5)
 
+# 🎯 NEW! Record specific app audio only (exclude Discord voice!)
+pypac.record_process("game.exe", "game_only.wav", duration=10)
+
 # Adjust app volume
 pypac.set_app_volume("spotify", 0.5)
 
 # Check running audio sessions
 apps = pypac.get_active_apps()
 print(f"Playing audio: {', '.join(apps)}")
-# Output: Playing audio: Spotify.exe, Chrome.exe
+# Output: Playing audio: Spotify.exe, Chrome.exe, Discord.exe
 ```
 
 **That's it!** No complex configuration needed.
@@ -160,6 +163,9 @@ pypac.record_to_file("my_recording.wav", duration=5)
 
 # Record specific app audio only (NEW!)
 pypac.record_process("spotify", "spotify_only.wav", duration=10)
+
+# Record by process ID (more accurate)
+pypac.record_process_id(51716, "spotify_by_pid.wav", duration=10)
 
 # Check active apps
 apps = pypac.get_active_apps()
