@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 [![Version](https://img.shields.io/badge/Version-0.2.0-blue?style=for-the-badge)](https://github.com/yourusername/pypac)
 
-**Windowsで最もシンプルなオーディオ制御ライブラリ**
+**Windows対応のシンプルなオーディオ制御ライブラリ**
 
 [🇬🇧 English](README.en.md) | **🇯🇵 日本語**
 
