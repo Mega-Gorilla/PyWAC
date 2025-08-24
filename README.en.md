@@ -80,7 +80,7 @@ print(f"Playing audio: {', '.join(apps)}")
 
 ## Key Features
 
-### Process-Specific Audio Recording via Process Loopback API
+### Process-Specific Audio Recording via Process Loopback API ✅
 
 Implemented process-specific audio capture using the Windows Process Loopback API, available in Windows 10 2004 (Build 19041) and later. This enables isolation and capture of audio streams from individual processes, allowing separation of game audio from voice chat.
 
@@ -88,7 +88,9 @@ Implemented process-specific audio capture using the Windows Process Loopback AP
 - Audio session management via Windows Audio Session API (WASAPI)
 - Asynchronous audio interface initialization using `ActivateAudioInterfaceAsync`
 - Process-specific capture through `AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK`
+- Target process audio recording with `PROCESS_LOOPBACK_MODE_INCLUDE_TARGET_PROCESS_TREE`
 - Fixed format: 48kHz / 32-bit float / stereo (due to `GetMixFormat()` returning E_NOTIMPL)
+- Up to 60 seconds buffering support
 
 **Implementation Details:**
 - Low-level implementation in C++17 (`src/process_loopback_v2.cpp`)
@@ -104,10 +106,7 @@ For detailed technical specifications, see the [Technical Investigation Report](
 ### Method 1: Easy Install (Recommended)
 
 ```bash
-# From PyPI (coming soon)
-pip install pypac
-
-# Or development version
+# Development version (current installation method)
 git clone https://github.com/yourusername/pypac.git
 cd pypac
 pip install -e .
@@ -258,11 +257,14 @@ if loopback.start():
 import pypac
 import process_loopback_v2 as loopback
 
-# Method 1: High-level API (in development)
+# Method 1: High-level API (working!)
 def record_specific_app(app_name, output_file, duration=10):
     """Record audio from specific app only"""
-    pypac.record_process(app_name, output_file, duration)
-    print(f"✅ {app_name} audio recorded successfully!")
+    success = pypac.record_process(app_name, output_file, duration)
+    if success:
+        print(f"✅ {app_name} audio recorded successfully!")
+    else:
+        print(f"❌ Recording failed - Check if {app_name} is playing audio")
 
 # Method 2: Low-level API (currently working)
 def record_with_process_loopback():
@@ -286,8 +288,10 @@ def record_with_process_loopback():
         audio_data = capture.get_buffer()
         capture.stop()
         
-        # Save to WAV file
-        pypac.utils.save_to_wav(audio_data, "spotify_only.wav")
+        # Save to WAV file (save numpy array directly)
+        import numpy as np
+        audio_array = np.array(audio_data, dtype=np.float32)
+        pypac.utils.save_to_wav(audio_array, "spotify_only.wav", sample_rate=48000)
         print("✅ Spotify audio saved successfully!")
 
 # Example: Record game audio only (no Discord voice)

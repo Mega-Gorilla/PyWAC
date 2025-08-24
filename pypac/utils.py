@@ -106,37 +106,57 @@ def load_wav(filename: str) -> Tuple[List[float], int, int]:
         return audio_data, sample_rate, channels
 
 
-def calculate_rms(audio_data: List[float]) -> float:
+def calculate_rms(audio_data) -> float:
     """
     Calculate RMS (Root Mean Square) of audio data.
     
     Args:
-        audio_data: Audio samples
+        audio_data: Audio samples (list or numpy array)
         
     Returns:
         RMS value
     """
-    if not audio_data:
+    import numpy as np
+    
+    # Convert to numpy array if needed
+    if not isinstance(audio_data, np.ndarray):
+        audio_data = np.array(audio_data)
+    
+    if len(audio_data) == 0:
         return 0.0
     
-    sum_squares = sum(sample ** 2 for sample in audio_data)
-    return (sum_squares / len(audio_data)) ** 0.5
+    # Calculate RMS
+    return np.sqrt(np.mean(audio_data ** 2))
 
 
-def calculate_db(audio_data: List[float]) -> float:
+def calculate_db(audio_data) -> float:
     """
     Calculate decibel level of audio data.
     
     Args:
-        audio_data: Audio samples
+        audio_data: Audio samples (list or numpy array)
         
     Returns:
-        Decibel level
+        Decibel level in dB
     """
-    rms = calculate_rms(audio_data)
+    import numpy as np
+    
+    # Convert to numpy array if needed
+    if not isinstance(audio_data, np.ndarray):
+        audio_data = np.array(audio_data)
+    
+    if len(audio_data) == 0:
+        return -float('inf')
+    
+    # Calculate RMS
+    rms = np.sqrt(np.mean(audio_data ** 2))
+    
     if rms == 0:
         return -float('inf')
-    return 20 * (rms + 1e-10) ** 0.5  # Avoid log(0)
+    
+    # Convert to dB (20 * log10(rms))
+    import math
+    return 20 * math.log10(rms + 1e-10)  # Add small value to avoid log(0)
 
 
 def normalize_audio(audio_data: List[float], target_level: float = 0.9) -> List[float]:
