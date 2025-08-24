@@ -458,10 +458,10 @@ with gr.Blocks(title="PyPAC完全機能デモ", theme=gr.themes.Soft()) as demo:
                 
                 with gr.Tab("コールバック録音"):
                     callback_duration = gr.Slider(1, 60, 10, step=1, label="録音時間（秒）")
-                    enable_monitoring = gr.Checkbox(label="リアルタイムモニタリング", value=True)
+                    enable_monitoring = gr.Checkbox(label="リアルタイムモニタリング", value=False)
                     callback_record_btn = gr.Button("🔴 コールバック録音開始", variant="primary")
                     monitoring_output = gr.Textbox(
-                        label="モニタリング状況",
+                        label="モニタリング状況（注：リアルタイム更新は現在無効）",
                         lines=5,
                         interactive=False
                     )
@@ -557,6 +557,54 @@ with gr.Blocks(title="PyPAC完全機能デモ", theme=gr.themes.Soft()) as demo:
                     label="録音結果",
                     type="numpy"
                 )
+    
+    # ===== 高度な機能タブ =====
+    with gr.Tab("高度な機能"):
+        with gr.Row():
+            with gr.Column():
+                gr.Markdown("### Direct Recording Functions")
+                
+                # record_to_file デモ
+                direct_duration = gr.Slider(1, 30, 5, step=1, label="録音時間（秒）")
+                direct_filename = gr.Textbox(label="出力ファイル名", value="direct_recording.wav")
+                direct_record_btn = gr.Button("record_to_file() を実行", variant="primary")
+                direct_status = gr.Textbox(label="ステータス", interactive=False)
+                
+                gr.Markdown("### クラスの直接使用")
+                
+                # SessionManager デモ
+                use_session_manager_btn = gr.Button("SessionManager を使用")
+                session_manager_output = gr.Textbox(label="SessionManager 出力", lines=5, interactive=False)
+                
+                # AudioRecorder デモ
+                use_audio_recorder_btn = gr.Button("AudioRecorder を使用")
+                audio_recorder_output = gr.Textbox(label="AudioRecorder 出力", lines=5, interactive=False)
+                
+                gr.Markdown("### 非推奨機能")
+                test_deprecated_btn = gr.Button("非推奨API のテスト")
+                deprecated_output = gr.Textbox(label="非推奨API の結果", lines=3, interactive=False)
+            
+            with gr.Column():
+                gr.Markdown("### ユーティリティ機能")
+                
+                # WAVファイル操作
+                wav_file_input = gr.File(label="WAVファイルをアップロード", file_types=[".wav"])
+                
+                # load_wav デモ
+                load_wav_btn = gr.Button("load_wav() を実行")
+                load_wav_output = gr.Textbox(label="WAV情報", lines=3, interactive=False)
+                
+                # 音声解析
+                gr.Markdown("### 音声解析ユーティリティ")
+                calc_rms_btn = gr.Button("calculate_rms() を実行")
+                calc_db_btn = gr.Button("calculate_db() を実行")
+                normalize_btn = gr.Button("normalize_audio() を実行")
+                analysis_output = gr.Textbox(label="解析結果", lines=5, interactive=False)
+                
+                # convert_float32_to_int16 デモ
+                gr.Markdown("### フォーマット変換")
+                convert_btn = gr.Button("convert_float32_to_int16() デモ")
+                convert_output = gr.Textbox(label="変換結果", lines=3, interactive=False)
     
     # ===== ヘルプタブ =====
     with gr.Tab("ヘルプ"):
@@ -774,12 +822,9 @@ with gr.Blocks(title="PyPAC完全機能デモ", theme=gr.themes.Soft()) as demo:
         outputs=[record_status, audio_output]
     )
     
-    # モニタリング更新（1秒ごと）
-    demo.load(
-        update_monitoring,
-        outputs=monitoring_output,
-        every=1
-    )
+    # モニタリング更新（コールバック録音時のみアクティブ）
+    # Gradio 5対応: Timer コンポーネントを使用して定期更新を実装
+    
     
     # 音量制御
     set_volume_btn.click(
@@ -818,6 +863,215 @@ with gr.Blocks(title="PyPAC完全機能デモ", theme=gr.themes.Soft()) as demo:
         test_pid_loopback,
         inputs=[loopback_process, loopback_duration],
         outputs=[loopback_status, loopback_audio]
+    )
+    
+    # 高度な機能のイベントハンドラー
+    def test_record_to_file(duration, filename):
+        """record_to_file() 関数のテスト"""
+        try:
+            if not filename:
+                filename = "direct_recording.wav"
+            
+            filepath = str(app.recordings_dir / filename)
+            success = pypac.record_to_file(filepath, duration)
+            
+            if success and os.path.exists(filepath):
+                size = os.path.getsize(filepath) / 1024
+                return f"[OK] record_to_file() 成功\nファイル: {filename}\nサイズ: {size:.1f} KB"
+            else:
+                return "[FAIL] record_to_file() 失敗"
+        except Exception as e:
+            return f"エラー: {str(e)}"
+    
+    def test_session_manager():
+        """SessionManager クラスの直接使用"""
+        try:
+            from pypac import SessionManager
+            
+            manager = SessionManager()
+            sessions = manager.list_sessions()
+            
+            output = f"SessionManager インスタンス作成成功\n"
+            output += f"セッション数: {len(sessions)}\n\n"
+            
+            if sessions:
+                session = sessions[0]
+                output += f"最初のセッション:\n"
+                output += f"- プロセス: {session.process_name}\n"
+                output += f"- PID: {session.process_id}\n"
+                output += f"- 音量: {session.volume * 100:.0f}%\n"
+                output += f"- アクティブ: {session.is_active}"
+            
+            return output
+        except Exception as e:
+            return f"エラー: {str(e)}"
+    
+    def test_audio_recorder():
+        """AudioRecorder クラスの直接使用"""
+        try:
+            from pypac import AudioRecorder
+            
+            recorder = AudioRecorder()
+            output = "AudioRecorder インスタンス作成成功\n"
+            output += f"サンプルレート: {recorder.sample_rate} Hz\n"
+            output += f"チャンネル数: {recorder.channels}\n"
+            output += f"録音中: {recorder.is_recording}\n\n"
+            
+            # 短い録音テスト
+            output += "1秒の録音テスト実行中..."
+            audio_data = recorder.record(1)
+            output += f"\n録音サンプル数: {len(audio_data)}"
+            
+            return output
+        except Exception as e:
+            return f"エラー: {str(e)}"
+    
+    def test_deprecated_apis():
+        """非推奨APIのテスト"""
+        try:
+            output = "非推奨API のテスト:\n\n"
+            
+            # find_app (deprecated)
+            result = pypac.find_app("firefox")
+            output += f"find_app('firefox'): {'Found' if result else 'Not found'}\n"
+            
+            # get_active_apps (deprecated)
+            apps = pypac.get_active_apps()
+            output += f"get_active_apps(): {len(apps)} アプリ検出"
+            
+            return output
+        except Exception as e:
+            return f"エラー: {str(e)}"
+    
+    def load_wav_file(file):
+        """WAVファイルを読み込み"""
+        if not file:
+            return "ファイルを選択してください"
+        
+        try:
+            audio_data, sample_rate, channels = pypac.utils.load_wav(file.name)
+            
+            output = f"load_wav() 成功:\n"
+            output += f"サンプル数: {len(audio_data)}\n"
+            output += f"サンプルレート: {sample_rate} Hz\n"
+            output += f"チャンネル数: {channels}"
+            
+            # セッション変数に保存（後の解析用）
+            app.loaded_audio_data = audio_data
+            
+            return output
+        except Exception as e:
+            return f"エラー: {str(e)}"
+    
+    def calculate_rms():
+        """RMS計算"""
+        try:
+            if not hasattr(app, 'loaded_audio_data'):
+                # デモ用のサンプルデータ生成
+                import numpy as np
+                app.loaded_audio_data = np.sin(np.linspace(0, 2*np.pi, 48000)).tolist()
+            
+            rms = pypac.utils.calculate_rms(app.loaded_audio_data)
+            return f"calculate_rms() 結果:\nRMS値: {rms:.6f}"
+        except Exception as e:
+            return f"エラー: {str(e)}"
+    
+    def calculate_db():
+        """dB計算"""
+        try:
+            if not hasattr(app, 'loaded_audio_data'):
+                # デモ用のサンプルデータ生成
+                import numpy as np
+                app.loaded_audio_data = (np.sin(np.linspace(0, 2*np.pi, 48000)) * 0.5).tolist()
+            
+            db = pypac.utils.calculate_db(app.loaded_audio_data)
+            return f"calculate_db() 結果:\n音量レベル: {db:.1f} dB"
+        except Exception as e:
+            return f"エラー: {str(e)}"
+    
+    def normalize_audio():
+        """音声正規化"""
+        try:
+            if not hasattr(app, 'loaded_audio_data'):
+                # デモ用のサンプルデータ生成
+                import numpy as np
+                app.loaded_audio_data = (np.sin(np.linspace(0, 2*np.pi, 48000)) * 0.3).tolist()
+            
+            original_max = max(abs(min(app.loaded_audio_data)), max(app.loaded_audio_data))
+            normalized = pypac.utils.normalize_audio(app.loaded_audio_data, 0.9)
+            new_max = max(abs(min(normalized)), max(normalized))
+            
+            output = f"normalize_audio() 結果:\n"
+            output += f"元の最大値: {original_max:.3f}\n"
+            output += f"正規化後の最大値: {new_max:.3f}\n"
+            output += f"サンプル数: {len(normalized)}"
+            
+            return output
+        except Exception as e:
+            return f"エラー: {str(e)}"
+    
+    def convert_format_demo():
+        """フォーマット変換デモ"""
+        try:
+            # デモ用のfloat32データ
+            float_data = [0.0, 0.5, 1.0, -0.5, -1.0]
+            int_data = pypac.utils.convert_float32_to_int16(float_data)
+            
+            output = "convert_float32_to_int16() デモ:\n\n"
+            output += "Float32 → Int16:\n"
+            for f, i in zip(float_data, int_data):
+                output += f"  {f:6.2f} → {i:6d}\n"
+            
+            return output
+        except Exception as e:
+            return f"エラー: {str(e)}"
+    
+    # 高度な機能のイベントバインディング
+    direct_record_btn.click(
+        test_record_to_file,
+        inputs=[direct_duration, direct_filename],
+        outputs=direct_status
+    )
+    
+    use_session_manager_btn.click(
+        test_session_manager,
+        outputs=session_manager_output
+    )
+    
+    use_audio_recorder_btn.click(
+        test_audio_recorder,
+        outputs=audio_recorder_output
+    )
+    
+    test_deprecated_btn.click(
+        test_deprecated_apis,
+        outputs=deprecated_output
+    )
+    
+    load_wav_btn.click(
+        load_wav_file,
+        inputs=wav_file_input,
+        outputs=load_wav_output
+    )
+    
+    calc_rms_btn.click(
+        calculate_rms,
+        outputs=analysis_output
+    )
+    
+    calc_db_btn.click(
+        calculate_db,
+        outputs=analysis_output
+    )
+    
+    normalize_btn.click(
+        normalize_audio,
+        outputs=analysis_output
+    )
+    
+    convert_btn.click(
+        convert_format_demo,
+        outputs=convert_output
     )
     
     # 初期化時にリストを更新
