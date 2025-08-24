@@ -1,5 +1,6 @@
 """
-Basic usage example for Windows Audio Capture Library
+PyPAC Audio Capture Demo - Demonstrates all main features
+Shows audio session enumeration, system capture, and volume control
 """
 
 import sys

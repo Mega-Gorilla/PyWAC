@@ -73,7 +73,7 @@ pip install pybind11 numpy
 python setup.py build_ext --inplace
 
 # 5. Verify
-python examples/basic_usage.py
+python examples/demo_audio_capture.py
 ```
 
 ## 🚀 Quick Start
