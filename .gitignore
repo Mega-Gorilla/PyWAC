@@ -19,6 +19,7 @@ dist/*.pyd
 *.lib
 *.dll
 *.exe
+*.wav
 
 # Visual Studio
 .vs/

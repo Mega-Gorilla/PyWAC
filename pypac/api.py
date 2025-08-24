@@ -9,24 +9,24 @@ from .recorder import AudioRecorder
 
 
 # Global instances for convenience functions
-_session_manager = None
-_audio_recorder = None
+_global_session_manager = None
+_global_audio_recorder = None
 
 
 def _get_session_manager() -> SessionManager:
     """Get or create global SessionManager instance."""
-    global _session_manager
-    if _session_manager is None:
-        _session_manager = SessionManager()
-    return _session_manager
+    global _global_session_manager
+    if _global_session_manager is None:
+        _global_session_manager = SessionManager()
+    return _global_session_manager
 
 
 def _get_audio_recorder() -> AudioRecorder:
     """Get or create global AudioRecorder instance."""
-    global _audio_recorder
-    if _audio_recorder is None:
-        _audio_recorder = AudioRecorder()
-    return _audio_recorder
+    global _global_audio_recorder
+    if _global_audio_recorder is None:
+        _global_audio_recorder = AudioRecorder()
+    return _global_audio_recorder
 
 
 # Session management functions
@@ -140,7 +140,7 @@ def unmute_app(app_name: str) -> bool:
 
 def record_audio(duration: float) -> List[float]:
     """
-    Record audio for a specified duration.
+    Record system-wide audio for a specified duration.
     
     Args:
         duration: Recording duration in seconds
@@ -158,7 +158,7 @@ def record_audio(duration: float) -> List[float]:
 
 def record_to_file(filename: str, duration: float) -> bool:
     """
-    Record audio directly to a WAV file.
+    Record system-wide audio directly to a WAV file.
     
     Args:
         filename: Output WAV filename
@@ -175,11 +175,162 @@ def record_to_file(filename: str, duration: float) -> bool:
     return recorder.record_to_file(filename, duration)
 
 
+def record_process(process_name: str, filename: str, duration: float) -> bool:
+    """
+    Record audio from a specific process only (Windows 10 2004+).
+    
+    Args:
+        process_name: Name or partial name of the process
+        filename: Output WAV filename
+        duration: Recording duration in seconds
+        
+    Returns:
+        True if successful, False otherwise
+        
+    Example:
+        >>> pypac.record_process("spotify", "spotify_audio.wav", 10)
+        True
+        
+    Note:
+        Requires Windows 10 version 2004 (Build 19041) or later.
+        Uses Process Loopback API for process-specific audio capture.
+    """
+    try:
+        import process_loopback_v2 as loopback
+        
+        # Find process by name
+        processes = loopback.list_audio_processes()
+        target_pid = None
+        
+        process_name_lower = process_name.lower()
+        for proc in processes:
+            if process_name_lower in proc.name.lower():
+                target_pid = proc.pid
+                break
+        
+        if target_pid is None:
+            print(f"Process '{process_name}' not found in audio sessions")
+            return False
+        
+        return record_process_id(target_pid, filename, duration)
+        
+    except ImportError:
+        print("Process-specific recording not available. Module process_loopback_v2 not found.")
+        return False
+    except Exception as e:
+        print(f"Failed to record process audio: {e}")
+        return False
+
+
+def record_process_id(pid: int, filename: str, duration: float) -> bool:
+    """
+    Record audio from a specific process by PID (Windows 10 2004+).
+    
+    Args:
+        pid: Process ID (use 0 for system-wide recording)
+        filename: Output WAV filename
+        duration: Recording duration in seconds
+        
+    Returns:
+        True if successful, False otherwise
+        
+    Example:
+        >>> pypac.record_process_id(12345, "app_audio.wav", 10)
+        True
+        
+    Note:
+        Requires Windows 10 version 2004 (Build 19041) or later.
+        Uses Process Loopback API for process-specific audio capture.
+    """
+    try:
+        import process_loopback_v2 as loopback
+        import numpy as np
+        import wave
+        import time
+        
+        # Create capture instance
+        capture = loopback.ProcessCapture()
+        
+        # Start capturing
+        if not capture.start(pid):
+            print(f"Failed to start capture for PID {pid}")
+            return False
+        
+        # Record for specified duration
+        time.sleep(duration)
+        
+        # Get captured audio
+        audio_data = capture.get_buffer()
+        capture.stop()
+        
+        if len(audio_data) == 0:
+            print("No audio data captured")
+            return False
+        
+        # Save to WAV file
+        audio_int16 = (audio_data * 32767).astype(np.int16)
+        
+        with wave.open(filename, 'wb') as wf:
+            wf.setnchannels(2)  # Stereo
+            wf.setsampwidth(2)  # 16-bit
+            wf.setframerate(48000)  # 48kHz
+            wf.writeframes(audio_int16.tobytes())
+        
+        return True
+        
+    except ImportError:
+        print("Process-specific recording not available. Module process_loopback_v2 not found.")
+        return False
+    except Exception as e:
+        print(f"Failed to record process audio: {e}")
+        return False
+
+
+def list_recordable_processes() -> List[Dict[str, Any]]:
+    """
+    List all processes that can be recorded (have audio sessions).
+    
+    Returns:
+        List of process information dictionaries with 'pid' and 'name' keys
+        
+    Example:
+        >>> processes = pypac.list_recordable_processes()
+        >>> for proc in processes:
+        ...     print(f"{proc['name']} (PID: {proc['pid']})")
+        
+    Note:
+        Requires process_loopback_v2 module for process-specific recording.
+    """
+    try:
+        import process_loopback_v2 as loopback
+        
+        processes = loopback.list_audio_processes()
+        return [
+            {'pid': proc.pid, 'name': proc.name}
+            for proc in processes
+        ]
+    except ImportError:
+        # Fallback to session-based listing
+        sessions = list_audio_sessions(active_only=True)
+        seen_pids = set()
+        result = []
+        
+        for session in sessions:
+            if session['process_id'] not in seen_pids:
+                seen_pids.add(session['process_id'])
+                result.append({
+                    'pid': session['process_id'],
+                    'name': session['process_name']
+                })
+        
+        return result
+
+
 # Advanced functions
 
-def find_app(app_name: str) -> Optional[Dict[str, Any]]:
+def find_audio_session(app_name: str) -> Optional[Dict[str, Any]]:
     """
-    Find an application by name and return its audio session info.
+    Find an audio session by application name.
     
     Args:
         app_name: Name or partial name of the application
@@ -188,7 +339,7 @@ def find_app(app_name: str) -> Optional[Dict[str, Any]]:
         Session information dictionary, or None if not found
         
     Example:
-        >>> info = pypac.find_app("firefox")
+        >>> info = pypac.find_audio_session("firefox")
         >>> if info:
         ...     print(f"Firefox is {'active' if info['is_active'] else 'inactive'}")
     """
@@ -196,19 +347,37 @@ def find_app(app_name: str) -> Optional[Dict[str, Any]]:
     return manager.get_session_info(app_name)
 
 
-def get_active_apps() -> List[str]:
+def find_app(app_name: str) -> Optional[Dict[str, Any]]:
     """
-    Get list of applications currently playing audio.
+    Deprecated: Use find_audio_session() instead.
+    
+    Find an application by name and return its audio session info.
+    """
+    return find_audio_session(app_name)
+
+
+def get_active_sessions() -> List[str]:
+    """
+    Get list of process names currently playing audio.
     
     Returns:
-        List of application names
+        List of process names with active audio sessions
         
     Example:
-        >>> active_apps = pypac.get_active_apps()
-        >>> print(f"Active apps: {', '.join(active_apps)}")
+        >>> active = pypac.get_active_sessions()
+        >>> print(f"Active sessions: {', '.join(active)}")
     """
     sessions = list_audio_sessions(active_only=True)
     return [s['process_name'] for s in sessions]
+
+
+def get_active_apps() -> List[str]:
+    """
+    Deprecated: Use get_active_sessions() instead.
+    
+    Get list of applications currently playing audio.
+    """
+    return get_active_sessions()
 
 
 def adjust_volume(app_name: str, delta: float) -> Optional[float]:

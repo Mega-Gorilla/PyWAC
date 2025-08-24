@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """
-PyPAC Package API Demo - Shows how to use the high-level API
+PyPAC Basic Usage Example
+Demonstrates the core functionality of PyPAC with simple examples
 """
 
 import pypac
@@ -20,17 +21,17 @@ def demo_simple_api():
         print(f"  - {session['process_name']}: {session['volume_percent']}% "
               f"({'Active' if session['is_active'] else 'Inactive'})")
     
-    # Get active applications
-    print("\n2. Active applications:")
-    active_apps = pypac.get_active_apps()
-    if active_apps:
-        print(f"  Apps playing audio: {', '.join(active_apps)}")
+    # Get active sessions
+    print("\n2. Active sessions:")
+    active_sessions = pypac.get_active_sessions()
+    if active_sessions:
+        print(f"  Sessions playing audio: {', '.join(active_sessions)}")
     else:
-        print("  No apps currently playing audio")
+        print("  No sessions currently playing audio")
     
-    # Find specific app
+    # Find specific session
     print("\n3. Find Firefox:")
-    firefox = pypac.find_app("firefox")
+    firefox = pypac.find_audio_session("firefox")
     if firefox:
         print(f"  Found: {firefox['process_name']} - Volume: {firefox['volume_percent']}%")
     else:

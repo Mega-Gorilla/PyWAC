@@ -146,10 +146,10 @@ Examples:
             if session['is_active']:
                 active_count += 1
         
-        # Show active apps summary
-        active_apps = pypac.get_active_apps()
-        if active_apps:
-            print(f"\n{len(active_apps)} active application(s): {', '.join(active_apps)}")
+        # Show active sessions summary
+        active_sessions = pypac.get_active_sessions()
+        if active_sessions:
+            print(f"\n{len(active_sessions)} active session(s): {', '.join(active_sessions)}")
         else:
             print("\nNo active audio sessions. Play audio in an application and try again.")
         return 0
@@ -183,18 +183,23 @@ Examples:
                 print("[WARNING] Application is not currently playing audio")
                 print("         Recording system audio instead...")
             else:
-                print("[NOTE] PyPAC currently records all system audio")
-                print("       Process-specific capture is under development")
-                print("       You can mute other apps to isolate audio")
+                # Try process-specific recording
+                print("[INFO] Attempting process-specific recording...")
+                success = pypac.record_process(args.app_name, output_file, args.duration)
+                if success:
+                    print(f"[SUCCESS] Process-specific audio saved to {output_file}")
+                    return 0
+                else:
+                    print("[FALLBACK] Recording system audio instead...")
         else:
             print(f"[WARNING] Application '{args.app_name}' not found")
             
-            # Show available apps
-            active_apps = pypac.get_active_apps()
-            if active_apps:
-                print("          Available applications:")
-                for app in active_apps:
-                    print(f"            - {app}")
+            # Show available sessions
+            active_sessions = pypac.get_active_sessions()
+            if active_sessions:
+                print("          Available sessions:")
+                for session in active_sessions:
+                    print(f"            - {session}")
             else:
                 print("          No applications currently playing audio")
             
