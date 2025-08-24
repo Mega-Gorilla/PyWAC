@@ -28,6 +28,8 @@ class PyPACDemoApp:
         self.recording_status = "待機中"
         self.callback_messages = []
         self.monitoring_active = False
+        self.recording_start_time = None
+        self.recording_duration = 0
         
         # recordingsディレクトリを作成
         self.recordings_dir = Path(__file__).parent / "recordings"
@@ -381,6 +383,8 @@ class PyPACDemoApp:
         try:
             self.is_recording = True
             self.audio_buffer = []
+            self.recording_start_time = time.time()
+            self.recording_duration = duration
             
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = str(self.recordings_dir / f"system_{timestamp}.wav")
@@ -431,6 +435,8 @@ class PyPACDemoApp:
             
             self.is_recording = True
             self.audio_buffer = []
+            self.recording_start_time = time.time()
+            self.recording_duration = duration
             
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = str(self.recordings_dir / f"process_{process_name.replace('.exe', '')}_{timestamp}.wav")
@@ -485,6 +491,8 @@ class PyPACDemoApp:
             self.audio_buffer = []
             self.callback_messages = []
             self.monitoring_active = monitor
+            self.recording_start_time = time.time()
+            self.recording_duration = duration
             
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = str(self.recordings_dir / f"callback_{timestamp}.wav")
@@ -504,43 +512,55 @@ class PyPACDemoApp:
             self.is_recording = False
             return f"録音開始エラー: {str(e)}", None, ""
     
-    def _audio_callback(self, audio_chunk: np.ndarray, chunk_index: int):
-        """音声チャンクのコールバック処理"""
-        if self.monitoring_active:
-            # 音声レベル計算
-            rms = np.sqrt(np.mean(audio_chunk ** 2))
-            db = 20 * np.log10(rms + 1e-10)
+    def _audio_callback(self, audio_data):
+        """録音完了時のコールバック処理"""
+        if audio_data and len(audio_data) > 0:
+            # 音声データを保存
+            self.audio_buffer = audio_data
             
-            # メッセージ追加
-            msg = f"チャンク {chunk_index}: {len(audio_chunk)} サンプル, {db:.1f} dB"
-            self.callback_messages.append(msg)
-            
-            # 最新10件のみ保持
-            if len(self.callback_messages) > 10:
-                self.callback_messages = self.callback_messages[-10:]
-        
-        # バッファに追加
-        self.audio_buffer.extend(audio_chunk.tolist())
+            if self.monitoring_active:
+                # 音声レベル計算（全体）
+                audio_array = np.array(audio_data) if not isinstance(audio_data, np.ndarray) else audio_data
+                rms = np.sqrt(np.mean(audio_array ** 2))
+                db = 20 * np.log10(rms + 1e-10)
+                
+                # 統計情報を追加
+                msg = f"録音完了: {len(audio_data)} サンプル, 平均音量: {db:.1f} dB"
+                self.callback_messages.append(msg)
+                
+                # 詳細な解析（10分割して各セクションの音量を表示）
+                chunk_size = len(audio_data) // 10
+                for i in range(10):
+                    start = i * chunk_size
+                    end = (i + 1) * chunk_size if i < 9 else len(audio_data)
+                    chunk = audio_array[start:end]
+                    chunk_rms = np.sqrt(np.mean(chunk ** 2))
+                    chunk_db = 20 * np.log10(chunk_rms + 1e-10)
+                    self.callback_messages.append(f"  セクション {i+1}/10: {chunk_db:.1f} dB")
+        else:
+            self.callback_messages.append("録音データが取得できませんでした")
     
     def _record_with_callback(self, filename: str, duration: int):
         """コールバック付き録音（バックグラウンド）"""
         try:
-            # コールバック録音実行
-            success = pypac.record_with_callback(
-                duration=duration,
-                callback=self._audio_callback,
-                filename=filename
-            )
+            # コールバック録音実行（APIの正しい呼び出し方）
+            pypac.record_with_callback(duration, self._audio_callback)
             
-            if success:
+            # コールバック完了まで待機
+            time.sleep(duration + 0.5)
+            
+            # 録音データが取得できたか確認
+            if self.audio_buffer is not None and len(self.audio_buffer) > 0:
+                # WAVファイルに保存
+                pypac.save_to_wav(self.audio_buffer, filename, 48000)
                 self.recording_status = f"コールバック録音成功: {filename}"
                 self.recording_filename = filename
                 
-                # NumPy配列に変換
-                if len(self.audio_buffer) > 0:
+                # NumPy配列に変換（既に配列の場合はそのまま）
+                if not isinstance(self.audio_buffer, np.ndarray):
                     self.audio_buffer = np.array(self.audio_buffer, dtype=np.float32)
             else:
-                self.recording_status = "コールバック録音失敗"
+                self.recording_status = "コールバック録音失敗: データが取得できませんでした"
         except Exception as e:
             self.recording_status = f"録音エラー: {str(e)}"
         finally:
@@ -578,13 +598,49 @@ class PyPACDemoApp:
     
     def get_monitoring_status(self) -> str:
         """モニタリング状況を取得"""
-        if not self.monitoring_active:
+        if not self.monitoring_active and not self.callback_messages:
             return "モニタリング停止中"
         
-        if len(self.callback_messages) == 0:
-            return "モニタリング中..."
+        if self.monitoring_active and len(self.callback_messages) == 0:
+            return "録音中... (録音完了後に解析結果が表示されます)"
         
-        return "\n".join(self.callback_messages)
+        if len(self.callback_messages) > 0:
+            return "\n".join(self.callback_messages[-15:])  # 最新15行を表示
+        
+        return "待機中..."
+    
+    def get_recording_progress(self) -> str:
+        """録音進捗状況をHTML形式で取得"""
+        if not self.is_recording:
+            return "<div style='padding: 10px; background-color: rgba(30, 30, 46, 0.5); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1); color: #e0e0e0; text-align: center;'>⏸️ 待機中</div>"
+        
+        if self.recording_start_time:
+            elapsed = time.time() - self.recording_start_time
+            progress = min(100, (elapsed / self.recording_duration) * 100) if self.recording_duration > 0 else 0
+            
+            # プログレスバー付きステータス
+            html = f"""
+            <div style='padding: 15px; background-color: rgba(76, 175, 80, 0.1); border-radius: 8px; border: 1px solid rgba(76, 175, 80, 0.3);'>
+                <div style='display: flex; align-items: center; gap: 10px; margin-bottom: 10px;'>
+                    <span style='color: #4caf50; font-size: 20px; animation: pulse 1.5s infinite;'>🔴</span>
+                    <span style='color: #4caf50; font-weight: bold;'>録音中...</span>
+                    <span style='color: #e0e0e0;'>({elapsed:.1f}/{self.recording_duration}秒)</span>
+                </div>
+                <div style='width: 100%; height: 20px; background-color: rgba(255, 255, 255, 0.1); border-radius: 10px; overflow: hidden;'>
+                    <div style='width: {progress:.0f}%; height: 100%; background: linear-gradient(90deg, #4caf50, #66bb6a); transition: width 0.3s ease;'></div>
+                </div>
+            </div>
+            <style>
+                @keyframes pulse {{
+                    0% {{ opacity: 1; }}
+                    50% {{ opacity: 0.5; }}
+                    100% {{ opacity: 1; }}
+                }}
+            </style>
+            """
+            return html
+        
+        return "<div style='padding: 10px; background-color: rgba(76, 175, 80, 0.2); border-radius: 8px; border: 1px solid rgba(76, 175, 80, 0.5); color: #4caf50; text-align: center;'>🔴 録音準備中...</div>"
     
     # ===== 音量制御機能 =====
     
@@ -753,55 +809,111 @@ with gr.Blocks(title="PyPAC完全機能デモ", theme=gr.themes.Soft(primary_hue
     
     # ===== 録音タブ =====
     with gr.Tab("録音"):
+        gr.Markdown("### 🎙️ 音声録音")
+        
+        # 録音モード選択
         with gr.Row():
-            with gr.Column():
-                gr.Markdown("### 録音モード選択")
+            with gr.Column(scale=1):
+                gr.Markdown("#### 📋 録音モード選択")
+                recording_mode = gr.Radio(
+                    choices=["システム録音", "プロセス録音", "コールバック録音"],
+                    value="システム録音",
+                    label="録音モード",
+                    info="録音方式を選択してください"
+                )
                 
-                with gr.Tab("システム録音"):
-                    system_duration = gr.Slider(1, 60, 10, step=1, label="録音時間（秒）")
-                    system_record_btn = gr.Button("🔴 システム録音開始", variant="primary")
+                # 共通録音設定
+                with gr.Group():
+                    duration_slider = gr.Slider(
+                        minimum=1,
+                        maximum=60,
+                        value=10,
+                        step=1,
+                        label="録音時間（秒）",
+                        info="1〜60秒の範囲で設定"
+                    )
+                    
+                    # 録音時間のプリセットボタン
+                    gr.Markdown("**クイック設定:**")
+                    with gr.Row():
+                        preset_5s = gr.Button("5秒", size="sm")
+                        preset_10s = gr.Button("10秒", size="sm")
+                        preset_30s = gr.Button("30秒", size="sm")
+                        preset_60s = gr.Button("60秒", size="sm")
                 
-                with gr.Tab("プロセス録音"):
+                # モード別設定
+                with gr.Group() as process_settings:
                     process_dropdown = gr.Dropdown(
                         label="対象プロセス",
                         choices=app.get_recordable_processes(),
                         value=None,
-                        interactive=True
+                        interactive=True,
+                        visible=False
                     )
-                    refresh_processes_btn = gr.Button("🔄 プロセス更新", size="sm")
-                    process_duration = gr.Slider(1, 60, 10, step=1, label="録音時間（秒）")
-                    process_record_btn = gr.Button("🔴 プロセス録音開始", variant="primary")
-                
-                with gr.Tab("コールバック録音"):
-                    callback_duration = gr.Slider(1, 60, 10, step=1, label="録音時間（秒）")
-                    enable_monitoring = gr.Checkbox(label="リアルタイムモニタリング", value=False)
-                    callback_record_btn = gr.Button("🔴 コールバック録音開始", variant="primary")
-                    monitoring_output = gr.Textbox(
-                        label="モニタリング状況（注：リアルタイム更新は現在無効）",
-                        lines=5,
-                        interactive=False
+                    refresh_processes_btn = gr.Button(
+                        "🔄 プロセスリスト更新",
+                        size="sm",
+                        visible=False
                     )
                 
-                stop_btn = gr.Button("⏹️ 録音停止", variant="stop")
+                with gr.Group() as callback_settings:
+                    enable_monitoring = gr.Checkbox(
+                        label="📊 リアルタイムモニタリング",
+                        value=False,
+                        visible=False,
+                        info="録音完了後に詳細な音声解析を表示"
+                    )
                 
-                record_status = gr.Textbox(
-                    label="録音ステータス",
-                    value="待機中",
-                    interactive=False
+                # 録音制御ボタン
+                with gr.Row():
+                    record_btn = gr.Button(
+                        "🔴 録音開始",
+                        variant="primary",
+                        scale=2
+                    )
+                    stop_btn = gr.Button(
+                        "⏹️ 録音停止",
+                        variant="stop",
+                        scale=1
+                    )
+                
+                # ステータス表示
+                record_status = gr.HTML(
+                    value="<div style='padding: 10px; background-color: rgba(30, 30, 46, 0.5); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1); color: #e0e0e0; text-align: center;'>⏸️ 待機中</div>"
                 )
             
-            with gr.Column():
+            with gr.Column(scale=2):
+                # 録音結果表示
+                gr.Markdown("#### 🎵 録音結果")
+                
                 audio_output = gr.Audio(
-                    label="録音結果",
-                    type="numpy"
+                    label="録音済みファイル",
+                    type="numpy",
+                    show_download_button=True,
+                    show_share_button=False
                 )
                 
-                recordings_list = gr.Dropdown(
-                    label="録音済みファイル",
-                    choices=app.list_recordings(),
-                    interactive=True
+                # モニタリング出力（コールバック録音用）
+                monitoring_output = gr.Textbox(
+                    label="📊 モニタリング情報",
+                    lines=8,
+                    interactive=False,
+                    visible=False,
+                    placeholder="録音完了後に音声解析結果が表示されます..."
                 )
-                refresh_recordings_btn = gr.Button("🔄 録音リスト更新", size="sm")
+                
+                # 録音履歴
+                with gr.Group():
+                    gr.Markdown("#### 📁 録音履歴")
+                    recordings_list = gr.Dropdown(
+                        label="過去の録音ファイル",
+                        choices=app.list_recordings(),
+                        interactive=True,
+                        info="選択してプレビュー"
+                    )
+                    with gr.Row():
+                        refresh_recordings_btn = gr.Button("🔄 リスト更新", size="sm")
+                        load_recording_btn = gr.Button("📂 読み込み", size="sm")
     
     # ===== 音量制御タブ =====
     with gr.Tab("音量制御"):
@@ -998,28 +1110,39 @@ with gr.Blocks(title="PyPAC完全機能デモ", theme=gr.themes.Soft(primary_hue
             recordings_list: gr.update(choices=recordings)
         }
     
-    # 録音機能
-    def on_system_record(duration):
-        status, audio = app.start_system_recording(duration)
-        return status, audio
+    # 録音ファイル読み込み
+    def load_selected_recording(filename):
+        """選択した録音ファイルを読み込み"""
+        if not filename or filename == "録音ファイルがありません":
+            return None
+        
+        try:
+            # ファイル名から実際のパスを取得
+            file_path = app.recordings_dir / filename.split(" (")[0]
+            if file_path.exists():
+                import wave
+                with wave.open(str(file_path), 'rb') as wf:
+                    frames = wf.readframes(wf.getnframes())
+                    audio_data = np.frombuffer(frames, dtype=np.int16)
+                    sample_rate = wf.getframerate()
+                    nchannels = wf.getnchannels()
+                    
+                    if nchannels == 2:
+                        audio_data = audio_data.reshape(-1, 2)
+                    else:
+                        audio_data = np.column_stack((audio_data, audio_data))
+                    
+                    return (sample_rate, audio_data)
+            return None
+        except Exception as e:
+            print(f"録音ファイル読み込みエラー: {e}")
+            return None
     
-    def on_process_record(process, duration):
-        status, audio = app.start_process_recording(process, duration)
-        return status, audio
-    
-    def on_callback_record(duration, monitor):
-        status, audio, monitoring = app.start_callback_recording(duration, monitor)
-        return status, audio, monitoring
-    
-    def on_stop_recording():
-        status, audio = app.stop_recording()
-        return status, audio
-    
-    def update_monitoring():
-        """モニタリング状況を定期更新"""
-        if app.monitoring_active:
-            return app.get_monitoring_status()
-        return gr.update()
+    load_recording_btn.click(
+        load_selected_recording,
+        inputs=recordings_list,
+        outputs=audio_output
+    )
     
     # Process Loopbackテスト
     def test_process_loopback(process, duration):
@@ -1214,25 +1337,76 @@ with gr.Blocks(title="PyPAC完全機能デモ", theme=gr.themes.Soft(primary_hue
         outputs=[session_info, volume_control_slider, mute_control_btn, unmute_control_btn, apply_volume_btn, sessions_table, session_stats]
     )
     
-    # 録音
-    system_record_btn.click(
-        on_system_record,
-        inputs=system_duration,
-        outputs=[record_status, audio_output]
+    # 録音モード切り替え時の表示制御
+    def toggle_recording_mode(mode):
+        """録音モードに応じて設定項目を表示/非表示"""
+        process_visible = (mode == "プロセス録音")
+        callback_visible = (mode == "コールバック録音")
+        return (
+            gr.update(visible=process_visible),  # process_dropdown
+            gr.update(visible=process_visible),  # refresh_processes_btn
+            gr.update(visible=callback_visible),  # enable_monitoring
+            gr.update(visible=callback_visible)   # monitoring_output
+        )
+    
+    recording_mode.change(
+        toggle_recording_mode,
+        inputs=recording_mode,
+        outputs=[process_dropdown, refresh_processes_btn, enable_monitoring, monitoring_output]
     )
-    process_record_btn.click(
-        on_process_record,
-        inputs=[process_dropdown, process_duration],
-        outputs=[record_status, audio_output]
-    )
-    callback_record_btn.click(
-        on_callback_record,
-        inputs=[callback_duration, enable_monitoring],
+    
+    # 録音時間プリセット
+    preset_5s.click(lambda: 5, outputs=duration_slider)
+    preset_10s.click(lambda: 10, outputs=duration_slider)
+    preset_30s.click(lambda: 30, outputs=duration_slider)
+    preset_60s.click(lambda: 60, outputs=duration_slider)
+    
+    # 統合録音関数
+    def start_recording(mode, duration, process, monitoring):
+        """モードに応じた録音を開始"""
+        status_html = lambda msg, icon="🔴": f"<div style='padding: 10px; background-color: rgba(76, 175, 80, 0.2); border-radius: 8px; border: 1px solid rgba(76, 175, 80, 0.5); color: #4caf50; text-align: center; font-weight: bold;'>{icon} {msg}</div>"
+        
+        if mode == "システム録音":
+            status, audio = app.start_system_recording(duration)
+            return status_html(status), audio, gr.update(visible=False)
+        elif mode == "プロセス録音":
+            if not process:
+                error_html = f"<div style='padding: 10px; background-color: rgba(255, 82, 82, 0.2); border-radius: 8px; border: 1px solid rgba(255, 82, 82, 0.5); color: #ff5252; text-align: center;'>⚠️ プロセスを選択してください</div>"
+                return error_html, None, gr.update(visible=False)
+            status, audio = app.start_process_recording(process, duration)
+            return status_html(status), audio, gr.update(visible=False)
+        elif mode == "コールバック録音":
+            status, audio, mon = app.start_callback_recording(duration, monitoring)
+            return status_html(status), audio, gr.update(visible=monitoring, value=mon if mon else "")
+        else:
+            return "不明なモード", None, gr.update(visible=False)
+    
+    # 録音停止関数
+    def stop_recording_with_status():
+        """録音を停止してステータスを更新"""
+        status, audio = app.stop_recording()
+        
+        # モニタリング情報を取得
+        monitoring_info = app.get_monitoring_status() if app.callback_messages else ""
+        
+        # ステータスHTMLを生成
+        if "停止しました" in status:
+            status_html = f"<div style='padding: 10px; background-color: rgba(30, 30, 46, 0.5); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1); color: #e0e0e0; text-align: center;'>✅ {status}</div>"
+        else:
+            status_html = f"<div style='padding: 10px; background-color: rgba(255, 152, 0, 0.2); border-radius: 8px; border: 1px solid rgba(255, 152, 0, 0.5); color: #ff9800; text-align: center;'>⚠️ {status}</div>"
+        
+        return status_html, audio, monitoring_info
+    
+    # 録音ボタンイベント
+    record_btn.click(
+        start_recording,
+        inputs=[recording_mode, duration_slider, process_dropdown, enable_monitoring],
         outputs=[record_status, audio_output, monitoring_output]
     )
+    
     stop_btn.click(
-        on_stop_recording,
-        outputs=[record_status, audio_output]
+        stop_recording_with_status,
+        outputs=[record_status, audio_output, monitoring_output]
     )
     
     # モニタリング更新（コールバック録音時のみアクティブ）
