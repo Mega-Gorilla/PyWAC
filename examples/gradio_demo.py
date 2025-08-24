@@ -35,6 +35,211 @@ class PyPACDemoApp:
     
     # ===== セッション管理機能 =====
     
+    def get_sessions_table(self) -> str:
+        """HTMLテーブル形式でセッション一覧を表示"""
+        try:
+            sessions = pypac.list_audio_sessions()
+            if not sessions:
+                return "<p style='color: gray; text-align: center;'>音声セッションが見つかりません</p>"
+            
+            # HTMLテーブルを構築（ダークテーマ対応）
+            html = """
+            <style>
+                .pypac-session-table {
+                    width: 100%;
+                    border-collapse: separate;
+                    border-spacing: 0;
+                    font-family: 'Segoe UI', Arial, sans-serif;
+                    background-color: rgba(30, 30, 46, 0.5);
+                    border-radius: 8px;
+                    overflow: hidden;
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                }
+                .pypac-session-table th {
+                    background-color: rgba(45, 45, 68, 0.8);
+                    color: #e0e0e0;
+                    padding: 12px 15px;
+                    text-align: left;
+                    font-weight: 600;
+                    font-size: 14px;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                }
+                .pypac-quick-controls {
+                    display: flex;
+                    gap: 8px;
+                    align-items: center;
+                }
+                .pypac-control-btn {
+                    background-color: rgba(255, 255, 255, 0.1);
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    border-radius: 4px;
+                    padding: 4px 8px;
+                    color: #e0e0e0;
+                    cursor: pointer;
+                    font-size: 12px;
+                    transition: all 0.2s;
+                }
+                .pypac-control-btn:hover {
+                    background-color: rgba(76, 175, 80, 0.3);
+                    border-color: #4caf50;
+                }
+                .pypac-session-table td {
+                    padding: 10px 15px;
+                    color: #ffffff;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                    background-color: rgba(30, 30, 46, 0.3);
+                }
+                .pypac-session-table tr:hover td {
+                    background-color: rgba(76, 175, 80, 0.1);
+                }
+                .pypac-active-row td {
+                    background-color: rgba(76, 175, 80, 0.15);
+                }
+                .pypac-volume-bar {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                }
+                .pypac-volume-bg {
+                    width: 120px;
+                    height: 8px;
+                    background-color: rgba(255, 255, 255, 0.1);
+                    border-radius: 4px;
+                    overflow: hidden;
+                }
+                .pypac-volume-fill {
+                    height: 100%;
+                    background: linear-gradient(90deg, #4caf50, #66bb6a);
+                    transition: width 0.3s ease;
+                }
+                .pypac-status-icon {
+                    font-size: 18px;
+                }
+                .pypac-process-name {
+                    font-weight: 500;
+                    color: #ffffff;
+                }
+            </style>
+            <table class='pypac-session-table'>
+                <thead>
+                    <tr>
+                        <th style='width: 60px; text-align: center;'>状態</th>
+                        <th style='min-width: 200px;'>プロセス名</th>
+                        <th style='width: 100px;'>PID</th>
+                        <th style='width: 200px;'>音量</th>
+                        <th style='width: 80px; text-align: center;'>ミュート</th>
+                    </tr>
+                </thead>
+                <tbody>
+            """
+            
+            for session in sessions:
+                # 状態アイコン
+                if session.get('is_active', False):
+                    status_icon = "🔊"
+                    row_class = "pypac-active-row"
+                else:
+                    status_icon = "⏸️"
+                    row_class = ""
+                
+                # ミュート状態
+                mute_status = "🔇" if session.get('is_muted', False) else "🔊"
+                
+                # 音量
+                volume = session.get('volume', session.get('volume_percent', 0))
+                if volume <= 1:
+                    volume = volume * 100
+                
+                # プロセス名を取得（エラー処理を強化）
+                process_name = session.get('process_name', session.get('name', ''))
+                if not process_name or process_name == 'None' or process_name == '':
+                    # executable名を試す
+                    process_name = session.get('executable', 'Unknown Process')
+                    if process_name and '\\' in process_name:
+                        process_name = process_name.split('\\')[-1]
+                    elif process_name and '/' in process_name:
+                        process_name = process_name.split('/')[-1]
+                
+                # 音量バー
+                volume_bar = f"""
+                <div class='pypac-volume-bar'>
+                    <div class='pypac-volume-bg'>
+                        <div class='pypac-volume-fill' style='width: {volume:.0f}%;'></div>
+                    </div>
+                    <span style='color: #e0e0e0; font-size: 14px;'>{volume:.0f}%</span>
+                </div>
+                """
+                
+                html += f"""
+                <tr class='{row_class}'>
+                    <td style='text-align: center;'><span class='pypac-status-icon'>{status_icon}</span></td>
+                    <td><span class='pypac-process-name'>{process_name}</span></td>
+                    <td style='color: #e0e0e0;'>{session.get('process_id', 'N/A')}</td>
+                    <td>{volume_bar}</td>
+                    <td style='text-align: center;'><span class='pypac-status-icon'>{mute_status}</span></td>
+                </tr>
+                """
+            
+            html += """
+                </tbody>
+            </table>
+            """
+            
+            return html
+        except Exception as e:
+            return f"<p style='color: red;'>エラー: {str(e)}</p>"
+    
+    def get_session_stats(self) -> str:
+        """セッション統計情報を表示"""
+        try:
+            sessions = pypac.list_audio_sessions()
+            active_sessions = pypac.get_active_sessions()
+            
+            total = len(sessions)
+            active = len(active_sessions)
+            inactive = total - active
+            
+            # ミュート中のセッション数をカウント
+            muted = sum(1 for s in sessions if s.get('is_muted', False))
+            
+            stats = f"""
+<div style='background-color: rgba(30, 30, 46, 0.5); padding: 15px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1);'>
+    <div style='color: #e0e0e0; font-size: 16px; font-weight: 600; margin-bottom: 15px;'>📊 セッション統計</div>
+    
+    <div style='display: grid; gap: 10px;'>
+        <div style='display: flex; justify-content: space-between; padding: 8px; background-color: rgba(255, 255, 255, 0.05); border-radius: 4px;'>
+            <span style='color: #b0b0b0;'>総セッション数:</span>
+            <span style='color: #ffffff; font-weight: 600;'>{total}</span>
+        </div>
+        
+        <div style='display: flex; justify-content: space-between; padding: 8px; background-color: rgba(76, 175, 80, 0.15); border-radius: 4px;'>
+            <span style='color: #b0b0b0;'>🔊 アクティブ:</span>
+            <span style='color: #4caf50; font-weight: 600;'>{active}</span>
+        </div>
+        
+        <div style='display: flex; justify-content: space-between; padding: 8px; background-color: rgba(255, 255, 255, 0.05); border-radius: 4px;'>
+            <span style='color: #b0b0b0;'>⏸️ 非アクティブ:</span>
+            <span style='color: #ffffff; font-weight: 600;'>{inactive}</span>
+        </div>
+        
+        <div style='display: flex; justify-content: space-between; padding: 8px; background-color: rgba(255, 152, 0, 0.15); border-radius: 4px;'>
+            <span style='color: #b0b0b0;'>🔇 ミュート中:</span>
+            <span style='color: #ff9800; font-weight: 600;'>{muted}</span>
+        </div>
+    </div>
+    
+    <div style='margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.1);'>
+        <div style='color: #808080; font-size: 12px; text-align: center;'>
+            最終更新: {datetime.now().strftime("%H:%M:%S")}
+        </div>
+    </div>
+</div>
+            """
+            
+            return stats
+        except Exception as e:
+            return f"<div style='color: #ff5252;'>エラー: {str(e)}</div>"
+    
     def get_audio_sessions(self) -> List[str]:
         """利用可能な音声セッションのリストを取得"""
         try:
@@ -56,31 +261,85 @@ class PyPACDemoApp:
         except Exception as e:
             return [f"エラー: {str(e)}"]
     
-    def get_session_details(self, session_name: str) -> str:
-        """セッションの詳細情報を取得"""
+    def get_session_details_html(self, session_name: str) -> tuple:
+        """セッションの詳細情報をHTML形式で取得（音量制御付き）"""
         if not session_name or session_name == "音声セッションが見つかりません":
-            return "セッションを選択してください"
+            return "<p style='color: gray; text-align: center;'>セッションを選択してください</p>", gr.update(visible=False), gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)
         
         try:
             app_name = session_name.split(" (PID:")[0]
             session = pypac.find_audio_session(app_name)
             
             if session:
-                details = f"""
-### セッション詳細情報
-
-**プロセス名**: {session.get('process_name', 'Unknown')}
-**プロセスID**: {session.get('process_id', 'N/A')}
-**音量**: {session.get('volume_percent', 0):.1f}%
-**ミュート状態**: {'ミュート中' if session.get('is_muted', False) else 'ミュート解除'}
-**アクティブ**: {'はい' if session.get('is_active', False) else 'いいえ'}
-**デバイス**: {session.get('device_name', 'デフォルト')}
+                # 状態アイコンと色
+                if session.get('is_active', False):
+                    status_color = "#4caf50"
+                    status_text = "アクティブ"
+                    status_icon = "🔊"
+                else:
+                    status_color = "#ff9800"
+                    status_text = "非アクティブ"
+                    status_icon = "⏸️"
+                
+                # ミュート状態
+                is_muted = session.get('is_muted', False)
+                mute_icon = "🔇" if is_muted else "🔊"
+                mute_text = "ミュート中" if is_muted else "ミュート解除"
+                
+                # 音量
+                volume = session.get('volume_percent', 0)
+                
+                # HTML構築（ダークテーマ対応）
+                html = f"""
+                <div style='background-color: rgba(30, 30, 46, 0.5); padding: 20px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.1);'>
+                    <h3 style='margin-top: 0; color: #ffffff; display: flex; align-items: center; gap: 10px;'>
+                        <span style='font-size: 28px;'>{status_icon}</span>
+                        <span>{session.get('process_name', 'Unknown')}</span>
+                    </h3>
+                    
+                    <div style='display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px;'>
+                        <div style='background-color: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 8px;'>
+                            <p style='margin: 0; color: #b0b0b0; font-size: 12px;'>プロセスID</p>
+                            <p style='margin: 5px 0; font-size: 20px; font-weight: bold; color: #ffffff;'>{session.get('process_id', 'N/A')}</p>
+                        </div>
+                        
+                        <div style='background-color: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 8px;'>
+                            <p style='margin: 0; color: #b0b0b0; font-size: 12px;'>状態</p>
+                            <p style='margin: 5px 0; font-size: 20px; font-weight: bold; color: {status_color};'>{status_text}</p>
+                        </div>
+                    </div>
+                    
+                    <div style='background-color: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 8px; margin-top: 15px;'>
+                        <p style='margin: 0; color: #b0b0b0; font-size: 12px;'>現在の音量</p>
+                        <div style='display: flex; align-items: center; margin-top: 10px;'>
+                            <div style='flex: 1; height: 30px; background-color: rgba(255, 255, 255, 0.1); border-radius: 15px; margin-right: 15px; position: relative;'>
+                                <div style='width: {volume:.0f}%; height: 100%; background: linear-gradient(90deg, #4caf50, #66bb6a); border-radius: 15px;'></div>
+                                <span style='position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-weight: bold; color: #ffffff; text-shadow: 0 0 4px rgba(0,0,0,0.5);'>{volume:.0f}%</span>
+                            </div>
+                            <span style='font-size: 24px;'>{mute_icon}</span>
+                        </div>
+                    </div>
+                    
+                    <div style='display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;'>
+                        <div style='background-color: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 8px;'>
+                            <p style='margin: 0; color: #b0b0b0; font-size: 12px;'>ミュート状態</p>
+                            <p style='margin: 5px 0; font-size: 16px; font-weight: bold; color: #ffffff;'>{mute_text}</p>
+                        </div>
+                        
+                        <div style='background-color: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 8px;'>
+                            <p style='margin: 0; color: #b0b0b0; font-size: 12px;'>デバイス</p>
+                            <p style='margin: 5px 0; font-size: 16px; font-weight: bold; color: #ffffff;'>{session.get('device_name', 'デフォルト')}</p>
+                        </div>
+                    </div>
+                </div>
                 """
-                return details
+                
+                # 音量制御コンポーネントの表示状態を返す
+                return html, gr.update(visible=True, value=volume), gr.update(visible=True, variant="stop" if is_muted else "primary"), gr.update(visible=True, variant="primary" if is_muted else "stop"), gr.update(visible=True)
             else:
-                return f"セッション情報を取得できませんでした: {app_name}"
+                return f"<p style='color: #ff5252;'>セッション情報を取得できませんでした: {app_name}</p>", gr.update(visible=False), gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)
         except Exception as e:
-            return f"エラー: {str(e)}"
+            return f"<p style='color: #ff5252;'>エラー: {str(e)}</p>", gr.update(visible=False), gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)
     
     def get_active_sessions(self) -> str:
         """アクティブなセッション一覧を取得"""
@@ -409,7 +668,7 @@ class PyPACDemoApp:
 app = PyPACDemoApp()
 
 # Gradioインターフェースの作成
-with gr.Blocks(title="PyPAC完全機能デモ", theme=gr.themes.Soft()) as demo:
+with gr.Blocks(title="PyPAC完全機能デモ", theme=gr.themes.Soft(primary_hue="green", neutral_hue="slate")) as demo:
     gr.Markdown("""
     # 🎙️ PyPAC 完全機能デモ（日本語版）
     
@@ -418,22 +677,79 @@ with gr.Blocks(title="PyPAC完全機能デモ", theme=gr.themes.Soft()) as demo:
     
     # ===== セッション管理タブ =====
     with gr.Tab("セッション管理"):
+        gr.Markdown("### 🎵 音声セッション管理")
+        
+        # タイマーコンポーネント（自動更新用）
+        session_timer = gr.Timer(value=5, active=False)
+        
+        with gr.Row():
+            with gr.Column(scale=2):
+                # セッション一覧表示
+                gr.Markdown("#### 現在のセッション一覧")
+                sessions_table = gr.HTML(
+                    value=app.get_sessions_table(),
+                    label="セッション一覧"
+                )
+                
+                with gr.Row():
+                    refresh_sessions_btn = gr.Button("🔄 更新", size="sm", scale=1)
+                    auto_refresh = gr.Checkbox(label="自動更新（5秒）", value=False, scale=1)
+                
+            with gr.Column(scale=1):
+                # アクティブセッション統計
+                session_stats = gr.HTML(app.get_session_stats())
+        
+        gr.Markdown("---")
+        
         with gr.Row():
             with gr.Column(scale=1):
+                # セッション選択
+                gr.Markdown("#### セッション選択")
                 session_dropdown = gr.Dropdown(
-                    label="音声セッション",
+                    label="詳細を表示するセッション",
                     choices=app.get_audio_sessions(),
                     value=None,
                     interactive=True
                 )
                 
-                refresh_sessions_btn = gr.Button("🔄 セッション更新", size="sm")
-                
-                get_details_btn = gr.Button("詳細情報を取得")
-                get_active_btn = gr.Button("アクティブセッション一覧")
+                get_details_btn = gr.Button("📋 詳細情報を取得", variant="primary")
                 
             with gr.Column(scale=2):
-                session_info = gr.Markdown("セッションを選択してください")
+                # 選択したセッションの詳細
+                gr.Markdown("#### 選択したセッションの詳細")
+                session_info = gr.HTML(
+                    value="<p style='color: gray;'>セッションを選択してください</p>"
+                )
+        
+        # 音量制御UI（セッション詳細の下に配置）
+        with gr.Row():
+            with gr.Column(scale=2):
+                volume_control_slider = gr.Slider(
+                    0, 100, 50, 
+                    step=1, 
+                    label="音量調整",
+                    visible=False,
+                    interactive=True
+                )
+            with gr.Column(scale=1):
+                with gr.Row():
+                    mute_control_btn = gr.Button(
+                        "🔇 ミュート",
+                        variant="stop",
+                        visible=False,
+                        size="sm"
+                    )
+                    unmute_control_btn = gr.Button(
+                        "🔊 ミュート解除",
+                        variant="primary",
+                        visible=False,
+                        size="sm"
+                    )
+                apply_volume_btn = gr.Button(
+                    "音量を適用",
+                    variant="primary",
+                    visible=False
+                )
     
     # ===== 録音タブ =====
     with gr.Tab("録音"):
@@ -768,7 +1084,41 @@ with gr.Blocks(title="PyPAC完全機能デモ", theme=gr.themes.Soft()) as demo:
     
     # イベントバインディング
     
+    # セッション管理の更新機能
+    def update_session_display():
+        """セッション表示を更新"""
+        sessions = app.get_audio_sessions()
+        return (
+            app.get_sessions_table(),
+            app.get_session_stats(),
+            gr.update(choices=sessions),
+            gr.update(choices=sessions)  # volume_app_dropdownも更新
+        )
+    
     # 更新ボタン
+    refresh_sessions_btn.click(
+        update_session_display,
+        outputs=[sessions_table, session_stats, session_dropdown, volume_app_dropdown]
+    )
+    
+    # 自動更新の制御
+    def toggle_auto_refresh(enabled):
+        """自動更新の有効/無効を切り替え"""
+        return gr.Timer(active=enabled)
+    
+    auto_refresh.change(
+        toggle_auto_refresh,
+        inputs=auto_refresh,
+        outputs=session_timer
+    )
+    
+    # タイマーイベントで自動更新
+    session_timer.tick(
+        update_session_display,
+        outputs=[sessions_table, session_stats, session_dropdown, volume_app_dropdown]
+    )
+    
+    # その他のプロセスリスト更新
     refresh_sessions_btn.click(refresh_sessions, outputs=[
         session_dropdown, volume_app_dropdown, process_dropdown,
         loopback_process, recordings_list
@@ -790,15 +1140,78 @@ with gr.Blocks(title="PyPAC完全機能デモ", theme=gr.themes.Soft()) as demo:
         loopback_process, recordings_list
     ])
     
-    # セッション管理
+    # セッション管理と音量制御
     get_details_btn.click(
-        lambda x: app.get_session_details(x),
+        app.get_session_details_html,
         inputs=session_dropdown,
-        outputs=session_info
+        outputs=[session_info, volume_control_slider, mute_control_btn, unmute_control_btn, apply_volume_btn]
     )
-    get_active_btn.click(
-        app.get_active_sessions,
-        outputs=session_info
+    
+    # 音量制御イベント
+    def apply_volume_from_slider(session_name, volume):
+        if not session_name or session_name == "音声セッションが見つかりません":
+            empty_result = (
+                "<p style='color: gray;'>セッションを選択してください</p>",
+                gr.update(visible=False), gr.update(visible=False), 
+                gr.update(visible=False), gr.update(visible=False)
+            )
+            return empty_result + (app.get_sessions_table(), app.get_session_stats())
+        
+        app_name = session_name.split(" (PID:")[0]
+        result = app.set_app_volume(app_name, volume)
+        
+        # 詳細とテーブルを再取得して更新
+        details_result = app.get_session_details_html(session_name)
+        return details_result + (app.get_sessions_table(), app.get_session_stats())
+    
+    apply_volume_btn.click(
+        apply_volume_from_slider,
+        inputs=[session_dropdown, volume_control_slider],
+        outputs=[session_info, volume_control_slider, mute_control_btn, unmute_control_btn, apply_volume_btn, sessions_table, session_stats]
+    )
+    
+    def mute_selected_app(session_name):
+        if not session_name or session_name == "音声セッションが見つかりません":
+            empty_result = (
+                "<p style='color: gray;'>セッションを選択してください</p>",
+                gr.update(visible=False), gr.update(visible=False), 
+                gr.update(visible=False), gr.update(visible=False)
+            )
+            return empty_result + (app.get_sessions_table(), app.get_session_stats())
+        
+        app_name = session_name.split(" (PID:")[0]
+        app.mute_app(app_name)
+        
+        # 詳細とテーブルを再取得して更新
+        details_result = app.get_session_details_html(session_name)
+        return details_result + (app.get_sessions_table(), app.get_session_stats())
+    
+    mute_control_btn.click(
+        mute_selected_app,
+        inputs=session_dropdown,
+        outputs=[session_info, volume_control_slider, mute_control_btn, unmute_control_btn, apply_volume_btn, sessions_table, session_stats]
+    )
+    
+    def unmute_selected_app(session_name):
+        if not session_name or session_name == "音声セッションが見つかりません":
+            empty_result = (
+                "<p style='color: gray;'>セッションを選択してください</p>",
+                gr.update(visible=False), gr.update(visible=False), 
+                gr.update(visible=False), gr.update(visible=False)
+            )
+            return empty_result + (app.get_sessions_table(), app.get_session_stats())
+        
+        app_name = session_name.split(" (PID:")[0]
+        app.unmute_app(app_name)
+        
+        # 詳細とテーブルを再取得して更新
+        details_result = app.get_session_details_html(session_name)
+        return details_result + (app.get_sessions_table(), app.get_session_stats())
+    
+    unmute_control_btn.click(
+        unmute_selected_app,
+        inputs=session_dropdown,
+        outputs=[session_info, volume_control_slider, mute_control_btn, unmute_control_btn, apply_volume_btn, sessions_table, session_stats]
     )
     
     # 録音
