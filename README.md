@@ -67,7 +67,7 @@ print(f"音声再生中: {', '.join(apps)}")
 | 機能 | PyPAC | 他のライブラリ |
 |------|-------|--------------|
 | プロセス別音量制御 | ✅ | ❌ |
-| アプリ単位の録音 | ✅ (開発中) | ❌ |
+| アプリ単位の録音 | ✅ 完成 | ❌ |
 | 簡単なAPI | ✅ 1行で実行 | ❌ 複雑な設定 |
 | Windows 11対応 | ✅ | ⚠️ 限定的 |
 
@@ -83,10 +83,12 @@ print(f"音声再生中: {', '.join(apps)}")
 | 🎚️ アプリ別音量制御 | ✅ 完成 | ⭐ |
 | 📊 オーディオセッション一覧 | ✅ 完成 | ⭐ |
 | 🔇 アプリ別ミュート | ✅ 完成 | ⭐ |
-| 🎯 プロセス固有録音 | 🚧 開発中 | ⭐⭐ |
+| 🎯 プロセス固有録音 | ✅ 完成 | ⭐⭐ |
 | 📈 リアルタイム解析 | ✅ 完成 | ⭐⭐ |
 
 </div>
+
+**プロセス固有録音について**: Windows Process Loopback APIを使用して、特定のアプリケーションの音声のみを録音できます。Windows 10 2004以降で利用可能です。詳細は[調査レポート](docs/PROCESS_LOOPBACK_INVESTIGATION.md)をご覧ください。
 
 ---
 
@@ -271,9 +273,18 @@ class StreamAudioMixer:
         
         print("✅ 配信用オーディオ設定完了！")
     
-    def save_game_audio(self, duration=60):
-        """ゲーム音声のみ録音（将来実装）"""
-        pypac.record_to_file(f"gameplay_{time.time()}.wav", duration)
+    def save_all_audio(self, duration=60):
+        """システム音声を録音（全アプリの混合音声）"""
+        pypac.record_to_file(f"recording_{time.time()}.wav", duration)
+    
+    def save_game_audio_only(self, game_pid, duration=60):
+        """ゲーム音声のみを録音（Discord音声を除外）"""
+        # Process Loopback APIでゲーム音声のみ録音
+        recorder = pypac.ProcessRecorder()
+        recorder.start_process_id(game_pid)
+        time.sleep(duration)
+        audio = recorder.stop()
+        pypac.utils.save_to_wav(audio, f"game_only_{time.time()}.wav")
 
 # 使用例
 mixer = StreamAudioMixer()
@@ -572,19 +583,3 @@ MIT License - 詳細は[LICENSE](LICENSE)参照
 - [OBS Studio](https://obsproject.com/) - オーディオキャプチャの参考実装
 - Windows Audio APIチーム - 詳細なドキュメント
 
-## 📊 統計
-
-![GitHub stars](https://img.shields.io/github/stars/yourusername/pypac?style=social)
-![GitHub forks](https://img.shields.io/github/forks/yourusername/pypac?style=social)
-
----
-
-<div align="center">
-
-**[⬆ トップに戻る](#-pypac---python-process-audio-capture-for-windows)**
-
-Made with ❤️ for Windows Audio Developers
-
-**⭐ スターをお願いします！**
-
-</div>
