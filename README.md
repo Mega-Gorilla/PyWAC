@@ -29,10 +29,11 @@ pypac.record_process("game.exe", "game_only.wav", duration=10)
 # アプリの音量を調整
 pypac.set_app_volume("spotify", 0.5)
 
-# 実行中のオーディオセッションを確認
-apps = pypac.get_active_apps()
-print(f"音声再生中: {', '.join(apps)}")
-# 出力例: 音声再生中: Spotify.exe, Chrome.exe, Discord.exe
+# アクティブなオーディオセッションを確認
+sessions = pypac.get_active_sessions()
+for s in sessions:
+    print(f"{s['process_name']}: 音量{s['volume_percent']:.0f}%")
+# 出力例: Spotify.exe: 音量50%
 ```
 
 **それだけです！** 複雑な設定は不要です。
@@ -156,14 +157,15 @@ pypac.record_process("spotify", "spotify_only.wav", duration=10)
 pypac.record_process_id(51716, "spotify_by_pid.wav", duration=10)
 
 # アクティブオーディオセッション取得
-apps = pypac.get_active_apps()
-print(f"Active sessions: {apps}")
+sessions = pypac.get_active_sessions()
+for s in sessions:
+    print(f"{s['process_name']} (PID: {s['process_id']})")
 
 # アプリケーション音量制御
 pypac.set_app_volume("spotify", 0.5)  # 50%
 
 # セッション情報取得
-firefox = pypac.find_app("firefox")
+firefox = pypac.find_audio_session("firefox")
 if firefox:
     print(f"Firefox volume: {firefox['volume_percent']}%")
 
@@ -255,7 +257,6 @@ if loopback.start():
 
 ```python
 import pypac
-import process_loopback_v2 as loopback
 
 # 方法1: 高レベルAPI（動作中！）
 def record_specific_app(app_name, output_file, duration=10):
@@ -266,33 +267,30 @@ def record_specific_app(app_name, output_file, duration=10):
     else:
         print(f"❌ 録音失敗 - {app_name}が音声を再生中か確認してください")
 
-# 方法2: 低レベルAPI（現在動作中）
-def record_with_process_loopback():
-    """Process Loopback APIを直接使用"""
-    # 音声セッションをリスト
-    processes = loopback.list_audio_processes()
-    
-    print("録音可能なアプリ:")
-    for proc in processes:
-        print(f"  - {proc.name} (PID: {proc.pid})")
-    
-    # Spotifyを録音（例）
-    spotify_pid = 51716  # 実際のPIDに置き換え
-    capture = loopback.ProcessCapture()
-    
-    if capture.start(spotify_pid):
-        print("録音開始...")
-        import time
-        time.sleep(10)  # 10秒録音
-        
-        audio_data = capture.get_buffer()
-        capture.stop()
-        
-        # WAVファイルに保存（numpy配列を直接保存）
+# 方法2: コールバック録音（新機能！）
+def record_with_callback_demo():
+    """録音完了時にコールバックを実行"""
+    def on_recording_complete(audio_data):
+        print(f"録音完了: {len(audio_data)} サンプル")
+        # 音声解析
         import numpy as np
-        audio_array = np.array(audio_data, dtype=np.float32)
-        pypac.utils.save_to_wav(audio_array, "spotify_only.wav", sample_rate=48000)
-        print("✅ Spotifyの音声のみ保存完了！")
+        audio_array = np.array(audio_data)
+        rms = np.sqrt(np.mean(audio_array ** 2))
+        db = 20 * np.log10(rms + 1e-10)
+        print(f"平均音量: {db:.1f} dB")
+        
+        # WAVファイルに保存
+        pypac.save_to_wav(audio_data, "callback_recording.wav", 48000)
+        print("✅ 録音をcallback_recording.wavに保存！")
+    
+    # 5秒間録音（非同期）
+    pypac.record_with_callback(5, on_recording_complete)
+    print("録音開始（バックグラウンド）...")
+    
+    # 録音完了まで待機
+    import time
+    time.sleep(6)
+    print("✅ 処理完了！")
 
 # 使用例：ゲーム音声のみ録音（Discord音声なし）
 record_specific_app("game.exe", "game_audio.wav", 30)
@@ -403,8 +401,9 @@ def auto_adjust_volume():
     
     else:
         # 通常時間
-        for app in pypac.get_active_apps():
-            pypac.set_app_volume(app, 0.7)
+        sessions = pypac.get_active_sessions()
+        for s in sessions:
+            pypac.set_app_volume(s['process_name'], 0.7)
         print("🏠 通常モード: 音量70%")
 
 # スケジュール設定
@@ -420,13 +419,19 @@ schedule.every().hour.do(auto_adjust_volume)
 | 関数 | 説明 | 例 |
 |------|------|-----|
 | `record_to_file(filename, duration)` | 音声を録音してファイルに保存 | `pypac.record_to_file("out.wav", 5)` |
+| `record_process(name, filename, duration)` | プロセス固有録音 | `pypac.record_process("spotify", "spotify.wav", 10)` |
+| `record_process_id(pid, filename, duration)` | PID指定で録音 | `pypac.record_process_id(12345, "out.wav", 10)` |
 | `list_audio_sessions()` | 全オーディオセッション取得 | `sessions = pypac.list_audio_sessions()` |
-| `get_active_apps()` | アクティブなアプリ名リスト | `apps = pypac.get_active_apps()` |
+| `list_recordable_processes()` | 録音可能プロセス一覧 | `procs = pypac.list_recordable_processes()` |
+| `get_active_sessions()` | アクティブセッション取得 | `sessions = pypac.get_active_sessions()` |
 | `set_app_volume(app, volume)` | アプリ音量設定 (0.0-1.0) | `pypac.set_app_volume("chrome", 0.5)` |
 | `get_app_volume(app)` | アプリ音量取得 | `vol = pypac.get_app_volume("chrome")` |
+| `adjust_volume(app, delta)` | 音量を相対的に調整 | `pypac.adjust_volume("chrome", 0.1)` |
 | `mute_app(app)` | アプリをミュート | `pypac.mute_app("spotify")` |
 | `unmute_app(app)` | ミュート解除 | `pypac.unmute_app("spotify")` |
-| `find_app(app)` | アプリ情報取得 | `info = pypac.find_app("firefox")` |
+| `find_audio_session(app)` | セッション情報取得 | `info = pypac.find_audio_session("firefox")` |
+| `record_with_callback(duration, callback)` | コールバック付き録音 | `pypac.record_with_callback(5, on_complete)` |
+| `save_to_wav(data, filename, sample_rate)` | WAVファイル保存 | `pypac.save_to_wav(audio_data, "out.wav", 48000)` |
 
 ### 🔵 クラスAPI
 
@@ -619,6 +624,24 @@ pypac/
 - ✅ **Chrome/Firefox** - セッション検出、音量制御
 - ✅ **Steam** - セッション検出
 - ✅ **OBS Studio** - 録音との併用可能
+
+---
+
+## 🎮 Gradio デモアプリケーション
+
+PyPACの全機能を試せる統合デモアプリを用意しています：
+
+```bash
+# Gradioデモを起動
+python examples/gradio_demo.py
+```
+
+### デモの機能：
+- 📊 **セッション管理**: リアルタイムで音声セッションを監視・制御
+- 🎚️ **音量制御**: 各アプリの音量をGUIで調整
+- 🔴 **録音機能**: システム/プロセス/コールバック録音をサポート
+- 📈 **モニタリング**: 録音中の音声レベルをリアルタイム表示
+- 🌙 **ダークテーマ**: 目に優しいモダンなUI
 
 ---
 

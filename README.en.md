@@ -30,7 +30,7 @@ pypac.record_process("game.exe", "game_only.wav", duration=10)
 pypac.set_app_volume("spotify", 0.5)
 
 # Check running audio sessions
-apps = pypac.get_active_apps()
+apps = pypac.get_active_sessions()
 print(f"Playing audio: {', '.join(apps)}")
 # Output: Playing audio: Spotify.exe, Chrome.exe, Discord.exe
 ```
@@ -156,7 +156,7 @@ pypac.record_process("spotify", "spotify_only.wav", duration=10)
 pypac.record_process_id(51716, "spotify_by_pid.wav", duration=10)
 
 # Get active audio sessions
-apps = pypac.get_active_apps()
+apps = pypac.get_active_sessions()
 print(f"Active sessions: {apps}")
 
 # Application volume control
@@ -380,15 +380,82 @@ audio_meter(10)
 
 ### Simple Function API
 
+#### Recording Functions
+
 | Function | Description | Example |
 |----------|-------------|---------|
 | `record_to_file(filename, duration)` | Record audio to file | `pypac.record_to_file("out.wav", 5)` |
 | `record_process(app, filename, duration)` | Record specific app audio | `pypac.record_process("spotify", "spotify.wav", 10)` |
+| `record_process_id(pid, filename, duration)` | Record by process ID | `pypac.record_process_id(1234, "app.wav", 10)` |
+| `record_with_callback(duration, callback)` | Record with callback | See callback recording example |
 | `list_audio_sessions()` | Get all audio sessions | `sessions = pypac.list_audio_sessions()` |
-| `get_active_apps()` | List active app names | `apps = pypac.get_active_apps()` |
+| `get_active_sessions()` | List active app names | `apps = pypac.get_active_sessions()` |
 | `set_app_volume(app, volume)` | Set app volume (0.0-1.0) | `pypac.set_app_volume("chrome", 0.5)` |
 | `mute_app(app)` | Mute app | `pypac.mute_app("spotify")` |
 | `find_app(app)` | Get app info | `info = pypac.find_app("firefox")` |
+
+#### Session Management Functions
+
+| Function | Description | Example |
+|----------|-------------|---------|  
+| `get_active_sessions()` | List active audio session names | `sessions = pypac.get_active_sessions()` |
+| `list_audio_sessions()` | Get detailed session information | `sessions = pypac.list_audio_sessions()` |
+| `find_app(app_name)` | Find session by name | `session = pypac.find_app("spotify")` |
+| `set_app_volume(app, volume)` | Set app volume (0.0-1.0) | `pypac.set_app_volume("chrome", 0.5)` |
+| `mute_app(app_name)` | Mute application | `pypac.mute_app("discord")` |
+| `unmute_app(app_name)` | Unmute application | `pypac.unmute_app("discord")` |
+
+#### Utility Functions
+
+| Function | Description | Example |
+|----------|-------------|---------|  
+| `save_to_wav(data, filename, sample_rate)` | Save audio to WAV | `pypac.save_to_wav(audio_data, "out.wav")` |
+| `calculate_rms(audio_buffer)` | Calculate RMS value | `rms = pypac.calculate_rms(buffer)` |
+| `calculate_db(audio_buffer)` | Calculate dB level | `db = pypac.calculate_db(buffer)` |
+
+### Callback Recording
+
+```python
+import pypac
+
+def audio_callback(audio_data):
+    """Called when recording completes"""
+    if audio_data:
+        print(f"Recorded {len(audio_data)} samples")
+        
+        # Process audio
+        rms = pypac.calculate_rms(audio_data)
+        db = pypac.calculate_db(audio_data)
+        print(f"Audio level: {db:.1f} dB")
+        
+        # Save to file
+        pypac.save_to_wav(audio_data, "callback_recording.wav")
+        print("Audio saved!")
+
+# Record with callback
+pypac.record_with_callback(duration=5, callback=audio_callback)
+print("Recording in progress...")
+```
+
+---
+
+## Interactive Demo
+
+### Gradio Demo Application
+
+PyPAC includes a comprehensive interactive demo built with Gradio that showcases all features:
+
+```bash
+# Run the demo
+python examples/gradio_demo.py
+```
+
+The demo includes:
+- **Session Management**: View and control all active audio sessions
+- **Volume Control**: Real-time volume adjustment for each application
+- **Recording Interface**: Test system-wide and process-specific recording
+- **Audio Analysis**: Real-time RMS and dB level monitoring
+- **Export Options**: Save recordings in various formats
 
 ---
 
