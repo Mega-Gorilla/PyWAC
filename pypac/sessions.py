@@ -204,5 +204,5 @@ class SessionManager:
             'is_active': session.is_active,
             'volume': session.volume,
             'volume_percent': int(session.volume * 100),
-            'muted': session.muted
+            'is_muted': session.muted
         }

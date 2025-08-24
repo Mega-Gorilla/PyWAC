@@ -80,7 +80,7 @@ print(f"音声再生中: {', '.join(apps)}")
 
 ## 主要機能
 
-### Process Loopback API による プロセス固有録音
+### Process Loopback API による プロセス固有録音 ✅
 
 Windows 10 2004 (Build 19041) 以降で利用可能な Process Loopback API を使用し、特定プロセスの音声ストリームを分離してキャプチャする機能を実装しました。これにより、ゲーム音声とボイスチャット音声を分離して録音することが可能です。
 
@@ -88,7 +88,9 @@ Windows 10 2004 (Build 19041) 以降で利用可能な Process Loopback API を�
 - Windows Audio Session API (WASAPI) を使用したオーディオセッション管理
 - `ActivateAudioInterfaceAsync` による非同期オーディオインターフェース初期化
 - `AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK` によるプロセス固有キャプチャ
+- `PROCESS_LOOPBACK_MODE_INCLUDE_TARGET_PROCESS_TREE` で対象プロセスの音声を録音
 - 48kHz / 32bit float / ステレオ の固定フォーマット（`GetMixFormat()` が E_NOTIMPL を返すため）
+- 最大60秒のバッファリング対応
 
 **実装詳細:**
 - C++17 による低レベル実装（`src/process_loopback_v2.cpp`）
@@ -104,10 +106,7 @@ Windows 10 2004 (Build 19041) 以降で利用可能な Process Loopback API を�
 ### 方法1: 簡単インストール（推奨）
 
 ```bash
-# PyPIから（準備中）
-pip install pypac
-
-# または開発版
+# 開発版（現在のインストール方法）
 git clone https://github.com/yourusername/pypac.git
 cd pypac
 pip install -e .
@@ -258,11 +257,14 @@ if loopback.start():
 import pypac
 import process_loopback_v2 as loopback
 
-# 方法1: 高レベルAPI（開発中）
+# 方法1: 高レベルAPI（動作中！）
 def record_specific_app(app_name, output_file, duration=10):
     """特定アプリの音声のみを録音"""
-    pypac.record_process(app_name, output_file, duration)
-    print(f"✅ {app_name}の音声のみ録音完了！")
+    success = pypac.record_process(app_name, output_file, duration)
+    if success:
+        print(f"✅ {app_name}の音声のみ録音完了！")
+    else:
+        print(f"❌ 録音失敗 - {app_name}が音声を再生中か確認してください")
 
 # 方法2: 低レベルAPI（現在動作中）
 def record_with_process_loopback():
@@ -286,8 +288,10 @@ def record_with_process_loopback():
         audio_data = capture.get_buffer()
         capture.stop()
         
-        # WAVファイルに保存
-        pypac.utils.save_to_wav(audio_data, "spotify_only.wav")
+        # WAVファイルに保存（numpy配列を直接保存）
+        import numpy as np
+        audio_array = np.array(audio_data, dtype=np.float32)
+        pypac.utils.save_to_wav(audio_array, "spotify_only.wav", sample_rate=48000)
         print("✅ Spotifyの音声のみ保存完了！")
 
 # 使用例：ゲーム音声のみ録音（Discord音声なし）

@@ -31,9 +31,13 @@ using Microsoft::WRL::ComPtr;
 namespace py = pybind11;
 
 // Virtual audio device for process loopback
-// This is defined in newer Windows SDK versions
 #ifndef VIRTUAL_AUDIO_DEVICE_PROCESS_LOOPBACK
 #define VIRTUAL_AUDIO_DEVICE_PROCESS_LOOPBACK L"VAD\\Process_Loopback"
+#endif
+
+// Buffer flags
+#ifndef AUDCLNT_BUFFERFLAGS_SILENT
+#define AUDCLNT_BUFFERFLAGS_SILENT 0x2
 #endif
 
 // Process information class
@@ -98,7 +102,7 @@ private:
     DWORD targetProcessId = 0;
     bool includeProcessTree = false;
     
-    static constexpr UINT32 BUFFER_SIZE = 4800;  // 100ms at 48kHz
+    static constexpr UINT32 BUFFER_SIZE = 48000;  // 1 second at 48kHz (per channel)
     
 public:
     ProcessCapture() {
@@ -180,9 +184,6 @@ public:
     static std::vector<ProcessInfo> ListAudioProcesses() {
         std::vector<ProcessInfo> processes;
         
-        // For now, return active audio sessions
-        // This could be enhanced to use IAudioSessionManager2
-        
         CoInitializeEx(nullptr, COINIT_MULTITHREADED);
         
         ComPtr<IMMDeviceEnumerator> deviceEnumerator;
@@ -215,7 +216,6 @@ public:
                                 if (sessionControl2) {
                                     DWORD processId;
                                     if (SUCCEEDED(sessionControl2->GetProcessId(&processId)) && processId > 0) {
-                                        // Get process name
                                         std::string processName = GetProcessName(processId);
                                         if (!processName.empty()) {
                                             processes.emplace_back(processId, processName);
@@ -237,7 +237,6 @@ private:
     HRESULT InitializeSystemLoopback() {
         std::cout << "Using system-wide loopback for PID 0" << std::endl;
         
-        // Get default audio endpoint for loopback
         ComPtr<IMMDeviceEnumerator> deviceEnumerator;
         HRESULT hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr,
                                      CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&deviceEnumerator));
@@ -253,7 +252,6 @@ private:
             return hr;
         }
         
-        // Activate audio client
         hr = device->Activate(__uuidof(IAudioClient), CLSCTX_INPROC_SERVER,
                              nullptr, reinterpret_cast<void**>(audioClient.GetAddressOf()));
         if (FAILED(hr)) {
@@ -261,7 +259,6 @@ private:
             return hr;
         }
         
-        // Get mix format for system loopback
         hr = audioClient->GetMixFormat(&waveFormat);
         if (FAILED(hr)) {
             std::cerr << "GetMixFormat failed: 0x" << std::hex << hr << std::endl;
@@ -272,7 +269,6 @@ private:
                   << waveFormat->nChannels << " channels, "
                   << waveFormat->wBitsPerSample << " bits" << std::endl;
         
-        // Initialize in loopback mode
         hr = audioClient->Initialize(
             AUDCLNT_SHAREMODE_SHARED,
             AUDCLNT_STREAMFLAGS_LOOPBACK,
@@ -288,7 +284,6 @@ private:
         
         std::cout << "System loopback initialized" << std::endl;
         
-        // Get capture client
         hr = audioClient->GetService(__uuidof(IAudioCaptureClient),
                                     reinterpret_cast<void**>(captureClient.GetAddressOf()));
         
@@ -297,7 +292,6 @@ private:
             return hr;
         }
         
-        // Start audio client
         hr = audioClient->Start();
         if (FAILED(hr)) {
             std::cerr << "Start failed: 0x" << std::hex << hr << std::endl;
@@ -311,32 +305,28 @@ private:
     HRESULT InitializeProcessLoopback() {
         std::cout << "Initializing loopback..." << std::endl;
         
-        // If PID is 0, use regular system-wide loopback
         if (targetProcessId == 0) {
             return InitializeSystemLoopback();
         }
         
-        // Setup activation parameters for process-specific loopback
         AUDIOCLIENT_ACTIVATION_PARAMS activationParams = {};
         activationParams.ActivationType = AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK;
         activationParams.ProcessLoopbackParams.TargetProcessId = targetProcessId;
-        activationParams.ProcessLoopbackParams.ProcessLoopbackMode = includeProcessTree ?
-            PROCESS_LOOPBACK_MODE_INCLUDE_TARGET_PROCESS_TREE :
-            PROCESS_LOOPBACK_MODE_EXCLUDE_TARGET_PROCESS_TREE;
+        // CRITICAL FIX: Always use INCLUDE mode to capture audio FROM the target process
+        // EXCLUDE mode would capture everything EXCEPT the target process!
+        activationParams.ProcessLoopbackParams.ProcessLoopbackMode = 
+            PROCESS_LOOPBACK_MODE_INCLUDE_TARGET_PROCESS_TREE;
         
         std::cout << "Target PID: " << targetProcessId << std::endl;
         std::cout << "Include tree: " << (includeProcessTree ? "yes" : "no") << std::endl;
         
-        // Create PROPVARIANT for activation
         PROPVARIANT propvariant = {};
         propvariant.vt = VT_BLOB;
         propvariant.blob.cbSize = sizeof(activationParams);
         propvariant.blob.pBlobData = reinterpret_cast<BYTE*>(&activationParams);
         
-        // Create completion handler
         auto completionHandler = Microsoft::WRL::Make<CompletionHandler>();
         
-        // Activate audio interface asynchronously
         ComPtr<IActivateAudioInterfaceAsyncOperation> asyncOp;
         HRESULT hr = ActivateAudioInterfaceAsync(
             VIRTUAL_AUDIO_DEVICE_PROCESS_LOOPBACK,
@@ -352,7 +342,6 @@ private:
         
         std::cout << "Waiting for activation..." << std::endl;
         
-        // Wait for completion
         completionHandler->Wait();
         
         if (FAILED(completionHandler->activateResult)) {
@@ -369,8 +358,7 @@ private:
         
         std::cout << "Audio client obtained successfully" << std::endl;
         
-        // Process Loopback doesn't support GetMixFormat, use fixed format
-        // According to Microsoft docs, use 48kHz, 2 channels, float32
+        // Use float format as per OBS implementation
         if (waveFormat) {
             CoTaskMemFree(waveFormat);
         }
@@ -392,11 +380,13 @@ private:
                   << waveFormat->nChannels << " channels, "
                   << waveFormat->wBitsPerSample << " bits (float32)" << std::endl;
         
-        // Initialize audio client
+        // Initialize with buffer duration (as per OBS: 500ms)
+        REFERENCE_TIME bufferDuration = 5 * 10000000;  // 500ms in 100-nanosecond units
+        
         hr = audioClient->Initialize(
             AUDCLNT_SHAREMODE_SHARED,
             AUDCLNT_STREAMFLAGS_LOOPBACK,
-            0,
+            bufferDuration,
             0,
             waveFormat,
             nullptr);
@@ -408,7 +398,6 @@ private:
         
         std::cout << "Audio client initialized" << std::endl;
         
-        // Get capture client
         hr = audioClient->GetService(__uuidof(IAudioCaptureClient),
                                     reinterpret_cast<void**>(captureClient.GetAddressOf()));
         
@@ -419,7 +408,6 @@ private:
         
         std::cout << "Capture client obtained" << std::endl;
         
-        // Start audio client
         hr = audioClient->Start();
         if (FAILED(hr)) {
             std::cerr << "Start failed: 0x" << std::hex << hr << std::endl;
@@ -439,54 +427,72 @@ private:
         HANDLE hTask = AvSetMmThreadCharacteristics(TEXT("Audio"), &taskIndex);
         
         while (isCapturing && captureClient) {
-            BYTE* data = nullptr;
-            UINT32 framesAvailable = 0;
-            DWORD flags = 0;
+            // Get next packet size (as per OBS implementation)
+            UINT32 packetLength = 0;
+            HRESULT hr = captureClient->GetNextPacketSize(&packetLength);
             
-            HRESULT hr = captureClient->GetBuffer(&data, &framesAvailable, &flags, nullptr, nullptr);
-            
-            if (SUCCEEDED(hr) && framesAvailable > 0) {
-                // Convert to float samples
-                std::vector<float> samples;
-                
-                if (waveFormat->wFormatTag == WAVE_FORMAT_IEEE_FLOAT) {
-                    float* floatData = reinterpret_cast<float*>(data);
-                    samples.assign(floatData, floatData + (framesAvailable * waveFormat->nChannels));
-                } else if (waveFormat->wFormatTag == WAVE_FORMAT_PCM) {
-                    if (waveFormat->wBitsPerSample == 16) {
-                        int16_t* int16Data = reinterpret_cast<int16_t*>(data);
-                        samples.reserve(framesAvailable * waveFormat->nChannels);
-                        for (UINT32 i = 0; i < framesAvailable * waveFormat->nChannels; ++i) {
-                            samples.push_back(int16Data[i] / 32768.0f);
-                        }
-                    } else if (waveFormat->wBitsPerSample == 32) {
-                        int32_t* int32Data = reinterpret_cast<int32_t*>(data);
-                        samples.reserve(framesAvailable * waveFormat->nChannels);
-                        for (UINT32 i = 0; i < framesAvailable * waveFormat->nChannels; ++i) {
-                            samples.push_back(int32Data[i] / 2147483648.0f);
-                        }
-                    }
-                }
-                
-                // Add to buffer
-                if (!samples.empty()) {
-                    std::lock_guard<std::mutex> lock(bufferMutex);
-                    audioBuffer.insert(audioBuffer.end(), samples.begin(), samples.end());
-                    
-                    // Limit buffer size
-                    if (audioBuffer.size() > BUFFER_SIZE * 10) {
-                        audioBuffer.erase(audioBuffer.begin(), 
-                                        audioBuffer.begin() + audioBuffer.size() - BUFFER_SIZE * 10);
-                    }
-                }
-                
-                captureClient->ReleaseBuffer(framesAvailable);
-            } else if (hr == AUDCLNT_S_BUFFER_EMPTY) {
-                // No data available, sleep briefly
-                Sleep(10);
-            } else if (FAILED(hr)) {
-                std::cerr << "GetBuffer failed: 0x" << std::hex << hr << std::endl;
+            if (FAILED(hr)) {
+                std::cerr << "GetNextPacketSize failed: 0x" << std::hex << hr << std::endl;
                 break;
+            }
+            
+            while (packetLength > 0) {
+                BYTE* data = nullptr;
+                UINT32 framesAvailable = 0;
+                DWORD flags = 0;
+                
+                hr = captureClient->GetBuffer(&data, &framesAvailable, &flags, nullptr, nullptr);
+                
+                if (SUCCEEDED(hr)) {
+                    // Process only non-silent packets (as per OBS)
+                    if (!(flags & AUDCLNT_BUFFERFLAGS_SILENT) && framesAvailable > 0) {
+                        // Convert to float samples
+                        std::vector<float> samples;
+                        
+                        if (waveFormat->wFormatTag == WAVE_FORMAT_IEEE_FLOAT) {
+                            float* floatData = reinterpret_cast<float*>(data);
+                            samples.assign(floatData, floatData + (framesAvailable * waveFormat->nChannels));
+                        } else if (waveFormat->wFormatTag == WAVE_FORMAT_PCM) {
+                            if (waveFormat->wBitsPerSample == 16) {
+                                int16_t* int16Data = reinterpret_cast<int16_t*>(data);
+                                samples.reserve(framesAvailable * waveFormat->nChannels);
+                                for (UINT32 i = 0; i < framesAvailable * waveFormat->nChannels; ++i) {
+                                    samples.push_back(int16Data[i] / 32768.0f);
+                                }
+                            }
+                        }
+                        
+                        // Add to buffer
+                        if (!samples.empty()) {
+                            std::lock_guard<std::mutex> lock(bufferMutex);
+                            audioBuffer.insert(audioBuffer.end(), samples.begin(), samples.end());
+                            
+                            // Limit buffer size to 60 seconds (60 * 48000 * 2 channels = 5,760,000 samples)
+                            const size_t MAX_BUFFER_SIZE = 48000 * 2 * 60;  // 60 seconds stereo
+                            if (audioBuffer.size() > MAX_BUFFER_SIZE) {
+                                audioBuffer.erase(audioBuffer.begin(), 
+                                                audioBuffer.begin() + audioBuffer.size() - MAX_BUFFER_SIZE);
+                            }
+                        }
+                    }
+                    
+                    captureClient->ReleaseBuffer(framesAvailable);
+                } else if (hr != AUDCLNT_S_BUFFER_EMPTY) {
+                    std::cerr << "GetBuffer failed: 0x" << std::hex << hr << std::endl;
+                    break;
+                }
+                
+                // Get next packet size
+                hr = captureClient->GetNextPacketSize(&packetLength);
+                if (FAILED(hr)) {
+                    std::cerr << "GetNextPacketSize failed: 0x" << std::hex << hr << std::endl;
+                    break;
+                }
+            }
+            
+            // Small sleep to avoid busy waiting
+            if (packetLength == 0) {
+                Sleep(10);
             }
         }
         

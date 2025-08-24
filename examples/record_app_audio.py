@@ -70,7 +70,7 @@ def record_with_progress(duration_seconds=5, output_file="recording.wav"):
         if elapsed - last_update >= 1.0:
             remaining = duration_seconds - elapsed
             progress = int((elapsed / duration_seconds) * 30)
-            bar = "█" * progress + "░" * (30 - progress)
+            bar = "#" * progress + "-" * (30 - progress)
             print(f"  [{bar}] {elapsed:.0f}s / {duration_seconds}s ({samples:,} samples)", end='\r')
             last_update = elapsed
         
@@ -100,13 +100,61 @@ def record_with_progress(duration_seconds=5, output_file="recording.wav"):
     
     return False
 
+def select_process_interactive():
+    """Let user select a process interactively from available processes"""
+    try:
+        # Get recordable processes
+        processes = pypac.list_recordable_processes()
+        
+        if not processes:
+            print("[WARNING] No recordable processes found")
+            return None, None
+        
+        print("\n[SELECT PROCESS TO RECORD]")
+        print("-" * 40)
+        print("  0. Record ALL system audio")
+        
+        for i, proc in enumerate(processes, 1):
+            # Check if process is active
+            sessions = pypac.list_audio_sessions()
+            is_active = any(s['process_id'] == proc['pid'] and s['is_active'] for s in sessions)
+            status = "[ACTIVE]" if is_active else "[INACTIVE]"
+            print(f"  {i}. {proc['name']} (PID: {proc['pid']}) {status}")
+        
+        print("-" * 40)
+        
+        while True:
+            try:
+                choice = input(f"Enter choice (0-{len(processes)}) or 'q' to quit: ").strip()
+                
+                if choice.lower() == 'q':
+                    return None, None
+                
+                choice_num = int(choice)
+                
+                if choice_num == 0:
+                    return "system", None
+                elif 1 <= choice_num <= len(processes):
+                    selected = processes[choice_num - 1]
+                    return selected['name'], selected['pid']
+                else:
+                    print(f"[ERROR] Please enter a number between 0 and {len(processes)}")
+                    
+            except ValueError:
+                print("[ERROR] Please enter a valid number or 'q' to quit")
+                
+    except Exception as e:
+        print(f"[ERROR] Failed to get process list: {e}")
+        return None, None
+
 def main():
     parser = argparse.ArgumentParser(
         description='Record audio from a specific application or system using PyPAC',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  %(prog)s                    # Record 5s of system audio to recording.wav
+  %(prog)s                    # Interactive mode - select process from menu
+  %(prog)s --interactive      # Interactive mode - select process from menu
   %(prog)s firefox            # Record 5s from Firefox to firefox_recording.wav  
   %(prog)s firefox 10         # Record 10s from Firefox
   %(prog)s firefox 10 out.wav # Record 10s from Firefox to out.wav
@@ -125,6 +173,8 @@ Examples:
                        help='List all audio sessions and exit')
     parser.add_argument('--progress', '-p', action='store_true',
                        help='Show progress bar during recording')
+    parser.add_argument('--interactive', '-i', action='store_true',
+                       help='Interactive mode - select process from menu')
     
     args = parser.parse_args()
     
@@ -154,17 +204,46 @@ Examples:
             print("\nNo active audio sessions. Play audio in an application and try again.")
         return 0
     
+    # Interactive mode - select process from menu
+    if args.interactive or (args.app_name is None and not args.output):
+        print("[INTERACTIVE MODE]")
+        app_name, pid = select_process_interactive()
+        
+        if app_name is None:
+            print("\n[INFO] Recording cancelled")
+            return 0
+        
+        # Set app_name for further processing
+        if app_name == "system":
+            args.app_name = None  # Will record system audio
+            print("\n[INFO] Recording ALL system audio")
+        else:
+            args.app_name = app_name
+            print(f"\n[INFO] Selected: {app_name} (PID: {pid})")
+    
+    # Create recordings directory if it doesn't exist
+    from pathlib import Path
+    script_dir = Path(__file__).parent
+    recordings_dir = script_dir / "recordings"
+    recordings_dir.mkdir(parents=True, exist_ok=True)
+    
     # Generate output filename
     if args.output:
-        output_file = args.output
+        # If output path is provided, use it as-is or place in recordings dir
+        output_path = Path(args.output)
+        if output_path.is_absolute():
+            output_file = str(output_path)
+        else:
+            output_file = str(recordings_dir / output_path)
     elif args.app_name:
         # Clean app name for filename
         safe_name = "".join(c for c in args.app_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
+        safe_name = safe_name.replace('.exe', '').replace(' ', '_')
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_file = f"{safe_name}_{timestamp}.wav"
+        output_file = str(recordings_dir / f"{safe_name}_{timestamp}.wav")
     else:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_file = f"recording_{timestamp}.wav"
+        output_file = str(recordings_dir / f"recording_{timestamp}.wav")
     
     # Ensure .wav extension
     if not output_file.endswith('.wav'):
@@ -208,6 +287,8 @@ Examples:
     # Record audio
     print(f"[CONFIG] Duration: {args.duration} seconds")
     print(f"[CONFIG] Output: {output_file}")
+    if not Path(output_file).is_absolute():
+        print(f"[CONFIG] Recording directory: {recordings_dir}")
     print("")
     
     # Use progress recording if requested

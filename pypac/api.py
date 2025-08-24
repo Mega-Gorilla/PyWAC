@@ -3,9 +3,28 @@ Simple function API for PyPAC.
 Provides easy-to-use functions for common audio tasks.
 """
 
+import os
+import sys
 from typing import List, Optional, Dict, Any
 from .sessions import SessionManager
 from .recorder import AudioRecorder
+
+
+def _import_process_loopback():
+    """Helper function to import process_loopback_v2 module with path fixes."""
+    try:
+        import process_loopback_v2 as loopback
+        return loopback
+    except ImportError:
+        # Try adding parent directory to path
+        parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if parent_dir not in sys.path:
+            sys.path.insert(0, parent_dir)
+        try:
+            import process_loopback_v2 as loopback
+            return loopback
+        except ImportError:
+            return None
 
 
 # Global instances for convenience functions
@@ -196,7 +215,10 @@ def record_process(process_name: str, filename: str, duration: float) -> bool:
         Uses Process Loopback API for process-specific audio capture.
     """
     try:
-        import process_loopback_v2 as loopback
+        loopback = _import_process_loopback()
+        if loopback is None:
+            print("Process-specific recording not available. Module process_loopback_v2 not found.")
+            return False
         
         # Find process by name
         processes = loopback.list_audio_processes()
@@ -243,7 +265,10 @@ def record_process_id(pid: int, filename: str, duration: float) -> bool:
         Uses Process Loopback API for process-specific audio capture.
     """
     try:
-        import process_loopback_v2 as loopback
+        loopback = _import_process_loopback()
+        if loopback is None:
+            print("Process-specific recording not available. Module process_loopback_v2 not found.")
+            return False
         import numpy as np
         import wave
         import time
@@ -267,8 +292,11 @@ def record_process_id(pid: int, filename: str, duration: float) -> bool:
             print("No audio data captured")
             return False
         
+        # Convert to numpy array if needed
+        audio_array = np.array(audio_data, dtype=np.float32)
+        
         # Save to WAV file
-        audio_int16 = (audio_data * 32767).astype(np.int16)
+        audio_int16 = (audio_array * 32767).astype(np.int16)
         
         with wave.open(filename, 'wb') as wf:
             wf.setnchannels(2)  # Stereo
@@ -302,7 +330,9 @@ def list_recordable_processes() -> List[Dict[str, Any]]:
         Requires process_loopback_v2 module for process-specific recording.
     """
     try:
-        import process_loopback_v2 as loopback
+        loopback = _import_process_loopback()
+        if loopback is None:
+            raise ImportError("process_loopback_v2 not available")
         
         processes = loopback.list_audio_processes()
         return [
