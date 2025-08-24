@@ -171,8 +171,42 @@ def record_audio(duration: float) -> List[float]:
         >>> audio_data = pypac.record_audio(5)  # Record 5 seconds
         >>> print(f"Recorded {len(audio_data)} samples")
     """
-    recorder = _get_audio_recorder()
-    return recorder.record(duration)
+    # Use process_loopback_v2 with PID=0 for system-wide recording
+    try:
+        loopback = _import_process_loopback()
+        if loopback is None:
+            # Fallback to old method if module not available
+            recorder = _get_audio_recorder()
+            return recorder.record(duration)
+        
+        import numpy as np
+        import time
+        
+        # Create capture instance
+        capture = loopback.ProcessCapture()
+        
+        # Start capturing with PID=0 for system-wide
+        if not capture.start(0):
+            print("Failed to start system-wide capture, falling back to old method")
+            recorder = _get_audio_recorder()
+            return recorder.record(duration)
+        
+        # Record for specified duration
+        time.sleep(duration)
+        
+        # Get captured audio
+        audio_data = capture.get_buffer()
+        capture.stop()
+        
+        # Convert to list if needed
+        if isinstance(audio_data, np.ndarray):
+            return audio_data.tolist()
+        return audio_data
+        
+    except Exception as e:
+        print(f"Error in system recording: {e}, falling back to old method")
+        recorder = _get_audio_recorder()
+        return recorder.record(duration)
 
 
 def record_to_file(filename: str, duration: float) -> bool:
@@ -190,8 +224,14 @@ def record_to_file(filename: str, duration: float) -> bool:
         >>> pypac.record_to_file("output.wav", 10)  # Record 10 seconds
         True
     """
-    recorder = _get_audio_recorder()
-    return recorder.record_to_file(filename, duration)
+    # Use process_loopback_v2 with PID=0 for system-wide recording
+    try:
+        # Use record_process_id with PID=0 for system-wide recording
+        return record_process_id(0, filename, duration)
+    except Exception as e:
+        print(f"Error in system recording: {e}, falling back to old method")
+        recorder = _get_audio_recorder()
+        return recorder.record_to_file(filename, duration)
 
 
 def record_process(process_name: str, filename: str, duration: float) -> bool:

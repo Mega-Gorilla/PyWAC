@@ -143,8 +143,11 @@ class PyPACDemoApp:
         try:
             audio_data = pypac.record_audio(duration)
             if audio_data is not None and len(audio_data) > 0:
-                pypac.save_to_wav(filename, audio_data, 48000)
-                self.audio_buffer = (audio_data * 32767).astype(np.int16)
+                # Fix argument order: audio_data first, then filename
+                pypac.save_to_wav(audio_data, filename, 48000)
+                # Convert to numpy array and then to int16
+                audio_array = np.array(audio_data, dtype=np.float32)
+                self.audio_buffer = (audio_array * 32767).astype(np.int16)
                 self.recording_status = f"システム音声録音成功: {filename}"
                 self.recording_filename = filename
             else:

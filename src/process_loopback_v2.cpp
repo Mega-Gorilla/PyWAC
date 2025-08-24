@@ -426,6 +426,10 @@ private:
         DWORD taskIndex = 0;
         HANDLE hTask = AvSetMmThreadCharacteristics(TEXT("Audio"), &taskIndex);
         
+        int debugCounter = 0;
+        int packetsProcessed = 0;
+        int silentPackets = 0;
+        
         while (isCapturing && captureClient) {
             // Get next packet size (as per OBS implementation)
             UINT32 packetLength = 0;
@@ -436,6 +440,13 @@ private:
                 break;
             }
             
+            // Debug output every 100 iterations
+            if (++debugCounter % 100 == 0) {
+                std::cout << "Debug: Packets processed=" << packetsProcessed 
+                          << ", Silent=" << silentPackets 
+                          << ", Buffer size=" << audioBuffer.size() << std::endl;
+            }
+            
             while (packetLength > 0) {
                 BYTE* data = nullptr;
                 UINT32 framesAvailable = 0;
@@ -444,12 +455,30 @@ private:
                 hr = captureClient->GetBuffer(&data, &framesAvailable, &flags, nullptr, nullptr);
                 
                 if (SUCCEEDED(hr)) {
+                    packetsProcessed++;
+                    
+                    // Debug: Check flags
+                    if (flags & AUDCLNT_BUFFERFLAGS_SILENT) {
+                        silentPackets++;
+                    }
+                    
                     // Process only non-silent packets (as per OBS)
                     if (!(flags & AUDCLNT_BUFFERFLAGS_SILENT) && framesAvailable > 0) {
                         // Convert to float samples
                         std::vector<float> samples;
                         
-                        if (waveFormat->wFormatTag == WAVE_FORMAT_IEEE_FLOAT) {
+                        // Debug: Log format once
+                        static bool formatLogged = false;
+                        if (!formatLogged) {
+                            std::cout << "Audio format tag: 0x" << std::hex << waveFormat->wFormatTag 
+                                      << ", Expected FLOAT: 0x" << WAVE_FORMAT_IEEE_FLOAT 
+                                      << ", Expected PCM: 0x" << WAVE_FORMAT_PCM << std::dec << std::endl;
+                            formatLogged = true;
+                        }
+                        
+                        if (waveFormat->wFormatTag == WAVE_FORMAT_IEEE_FLOAT || 
+                            waveFormat->wFormatTag == WAVE_FORMAT_EXTENSIBLE) {
+                            // Handle both IEEE_FLOAT and EXTENSIBLE formats
                             float* floatData = reinterpret_cast<float*>(data);
                             samples.assign(floatData, floatData + (framesAvailable * waveFormat->nChannels));
                         } else if (waveFormat->wFormatTag == WAVE_FORMAT_PCM) {
@@ -460,6 +489,10 @@ private:
                                     samples.push_back(int16Data[i] / 32768.0f);
                                 }
                             }
+                        } else {
+                            // Unknown format, try treating as float
+                            float* floatData = reinterpret_cast<float*>(data);
+                            samples.assign(floatData, floatData + (framesAvailable * waveFormat->nChannels));
                         }
                         
                         // Add to buffer
@@ -500,7 +533,9 @@ private:
             AvRevertMmThreadCharacteristics(hTask);
         }
         
-        std::cout << "Capture thread ended" << std::endl;
+        std::cout << "Capture thread ended. Total packets: " << packetsProcessed 
+                  << ", Silent: " << silentPackets 
+                  << ", Final buffer size: " << audioBuffer.size() << std::endl;
     }
     
     static std::string GetProcessName(DWORD processId) {
