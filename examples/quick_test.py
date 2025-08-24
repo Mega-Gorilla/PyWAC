@@ -19,10 +19,10 @@ try:
     if len(sessions) > 5:
         print(f"  ... and {len(sessions) - 5} more")
     
-    # Test finding active apps
-    active_apps = pypac.get_active_apps()
-    if active_apps:
-        print(f"\n[INFO] Active applications: {', '.join(active_apps)}")
+    # Test finding active sessions
+    active_sessions = pypac.get_active_sessions()
+    if active_sessions:
+        print(f"\n[INFO] Active sessions: {', '.join(active_sessions)}")
     else:
         print("\n[INFO] No applications currently playing audio")
     

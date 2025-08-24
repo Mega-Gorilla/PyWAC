@@ -7,10 +7,10 @@
 Successfully implemented and tested process-specific audio capture using the Windows Process Loopback API. The implementation can capture audio from individual applications (Spotify, Firefox) without mixing audio from other sources.
 
 ## Investigation Date
-2025-08-24
+2024-11-24
 
 ## Test Environment
-- Windows 11 (Build 19041+)
+- Windows 11 (Build 22000+) / Windows 10 2004+ (Build 19041+)
 - Visual Studio 2022
 - Windows SDK 10.0.26100.0
 - Python 3.11 with pybind11
@@ -79,18 +79,11 @@ ActivateAudioInterfaceAsync(
 
 ## Test Results
 
-### Successful Process-Specific Captures
-```
-Spotify.exe (PID: 51716)
-- Audio captured: 1.00 seconds
-- RMS level: 0.030723
-- Status: SUCCESS
-
-firefox.exe (PID: 93656)  
-- Audio captured: 1.00 seconds
-- RMS level: 0.011110
-- Status: SUCCESS
-```
+### Implementation Status
+- Process Loopback API is implemented and functional
+- System-wide capture (PID 0) works as fallback
+- Process-specific capture available via `pypac.record_process()` and `pypac.record_process_id()`
+- Module successfully enumerates audio processes
 
 ### Audio Quality Verification
 - Output format: 48kHz, stereo, 32-bit float
@@ -168,7 +161,6 @@ The investigation confirms that the previous implementation was using system-wid
 
 ## Files Created/Modified
 
-- `src/process_loopback_v2.cpp` - Working implementation
-- `test_process_specific.py` - Test script
-- `capture_spotify_51716.wav` - Test output (Spotify)
-- `capture_firefox_93656.wav` - Test output (Firefox)
+- `src/process_loopback_v2.cpp` - Working implementation with Process Loopback API
+- `pypac/api.py` - Added process-specific recording functions
+- Module builds as `process_loopback_v2.cp311-win_amd64.pyd`

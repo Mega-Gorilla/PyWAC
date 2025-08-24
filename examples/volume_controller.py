@@ -13,10 +13,10 @@ def main():
     print(f"Version: {pypac.__version__}")
     print()
     
-    # Get active applications
-    active_apps = pypac.get_active_apps()
+    # Get active sessions
+    active_sessions = pypac.get_active_sessions()
     
-    if not active_apps:
+    if not active_sessions:
         print("No active audio sessions found.")
         print("Please play audio in an application and try again.")
         return
@@ -60,7 +60,7 @@ def main():
                     session = manager.find_session(app_name)
                     if session:
                         new_mute = not session.is_muted
-                        if manager.mute_session(app_name, new_mute):
+                        if manager.set_mute(app_name, new_mute):
                             print(f"[OK] {'Muted' if new_mute else 'Unmuted'} {app_name}")
                         else:
                             print("[ERROR] Failed to change mute state")

@@ -27,12 +27,17 @@ from .api import (
     list_audio_sessions,
     record_to_file,
     record_audio,
+    record_process,
+    record_process_id,
+    list_recordable_processes,
     set_app_volume,
     get_app_volume,
     mute_app,
     unmute_app,
     find_app,
+    find_audio_session,
     get_active_apps,
+    get_active_sessions,
     adjust_volume,
     record_with_callback
 )
@@ -50,18 +55,27 @@ __all__ = [
     'AudioSession',
     'AudioRecorder',
     
-    # Functions
-    'list_audio_sessions',
+    # Functions - Audio Recording
     'record_to_file',
     'record_audio',
+    'record_process',
+    'record_process_id',
+    'record_with_callback',
+    
+    # Functions - Session Management
+    'list_audio_sessions',
+    'list_recordable_processes',
+    'find_audio_session',
+    'find_app',  # Deprecated
+    'get_active_sessions',
+    'get_active_apps',  # Deprecated
+    
+    # Functions - Volume Control
     'set_app_volume',
     'get_app_volume',
+    'adjust_volume',
     'mute_app',
     'unmute_app',
-    'find_app',
-    'get_active_apps',
-    'adjust_volume',
-    'record_with_callback',
     
     # Utilities
     'save_to_wav',
