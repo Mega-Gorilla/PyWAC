@@ -159,16 +159,42 @@ public:
     std::string GetProcessName(DWORD processId) {
         std::string processName = "Unknown";
         
+        // First try with PROCESS_QUERY_LIMITED_INFORMATION (works for more processes)
         HANDLE hProcess = OpenProcess(
-            PROCESS_QUERY_INFORMATION | PROCESS_VM_READ,
+            PROCESS_QUERY_LIMITED_INFORMATION,
             FALSE, processId);
         
         if (hProcess) {
             char buffer[MAX_PATH];
-            if (GetModuleBaseNameA(hProcess, nullptr, buffer, MAX_PATH)) {
-                processName = buffer;
+            DWORD bufferSize = MAX_PATH;
+            
+            // Use QueryFullProcessImageNameA for better compatibility
+            if (QueryFullProcessImageNameA(hProcess, 0, buffer, &bufferSize)) {
+                // Extract filename from full path
+                std::string fullPath(buffer);
+                size_t lastSlash = fullPath.find_last_of("\\/");
+                if (lastSlash != std::string::npos) {
+                    processName = fullPath.substr(lastSlash + 1);
+                } else {
+                    processName = fullPath;
+                }
             }
             CloseHandle(hProcess);
+        }
+        
+        // If failed, try with higher privileges
+        if (processName == "Unknown") {
+            hProcess = OpenProcess(
+                PROCESS_QUERY_INFORMATION | PROCESS_VM_READ,
+                FALSE, processId);
+            
+            if (hProcess) {
+                char buffer[MAX_PATH];
+                if (GetModuleBaseNameA(hProcess, nullptr, buffer, MAX_PATH)) {
+                    processName = buffer;
+                }
+                CloseHandle(hProcess);
+            }
         }
         
         return processName;
