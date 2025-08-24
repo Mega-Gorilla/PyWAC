@@ -23,7 +23,7 @@ import pypac
 # Record audio with just one line
 pypac.record_to_file("output.wav", duration=5)
 
-# 🎯 NEW! Record specific app audio only (exclude Discord voice!)
+# Record specific app audio only (exclude Discord voice!)
 pypac.record_process("game.exe", "game_only.wav", duration=10)
 
 # Adjust app volume
@@ -71,7 +71,7 @@ print(f"Playing audio: {', '.join(apps)}")
 | Feature | PyPAC | Other Libraries |
 |---------|-------|-----------------|
 | Per-process volume control | ✅ | ❌ |
-| **Per-app audio recording** | **✅ Fully Implemented** | ❌ |
+| **Per-app audio recording** | ✅ | ❌ |
 | Simple API | ✅ One-liner execution | ❌ Complex setup |
 | Windows 11 support | ✅ | ⚠️ Limited |
 | Process Loopback API | ✅ | ❌ |
@@ -161,7 +161,7 @@ import pypac
 # Record for 5 seconds (system-wide)
 pypac.record_to_file("my_recording.wav", duration=5)
 
-# Record specific app audio only (NEW!)
+# Record specific app audio only
 pypac.record_process("spotify", "spotify_only.wav", duration=10)
 
 # Record by process ID (more accurate)
