@@ -31,6 +31,14 @@ ext_modules = [
         language="c++",
         cxx_std=17,
     ),
+    Pybind11Extension(
+        "process_loopback_v2",  # Test module for process-specific capture
+        ["src/process_loopback_v2.cpp"],
+        include_dirs=[],
+        libraries=["ole32", "uuid", "mmdevapi", "avrt", "runtimeobject"],
+        language="c++",
+        cxx_std=17,
+    ),
 ]
 
 setup(
