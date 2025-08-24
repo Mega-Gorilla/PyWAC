@@ -78,33 +78,24 @@ print(f"音声再生中: {', '.join(apps)}")
 
 ---
 
-## ✨ 主な機能
+## 主要機能
 
-<div align="center">
+### Process Loopback API による プロセス固有録音
 
-| 機能 | 状態 | 簡単さ |
-|------|------|--------|
-| 🎙️ システムオーディオ録音 | ✅ 完成 | ⭐ |
-| 🎚️ アプリ別音量制御 | ✅ 完成 | ⭐ |
-| 📊 オーディオセッション一覧 | ✅ 完成 | ⭐ |
-| 🔇 アプリ別ミュート | ✅ 完成 | ⭐ |
-| 🎯 プロセス固有録音 | ✅ 完成 | ⭐⭐ |
-| 📈 リアルタイム解析 | ✅ 完成 | ⭐⭐ |
+Windows 10 2004 (Build 19041) 以降で利用可能な Process Loopback API を使用し、特定プロセスの音声ストリームを分離してキャプチャする機能を実装しました。これにより、ゲーム音声とボイスチャット音声を分離して録音することが可能です。
 
-</div>
+**技術仕様:**
+- Windows Audio Session API (WASAPI) を使用したオーディオセッション管理
+- `ActivateAudioInterfaceAsync` による非同期オーディオインターフェース初期化
+- `AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK` によるプロセス固有キャプチャ
+- 48kHz / 32bit float / ステレオ の固定フォーマット（`GetMixFormat()` が E_NOTIMPL を返すため）
 
-### 🎯 プロセス固有録音が完全動作！
+**実装詳細:**
+- C++17 による低レベル実装（`src/process_loopback_v2.cpp`）
+- pybind11 を使用した Python バインディング
+- COM マルチスレッド環境での動作（`COINIT_MULTITHREADED`）
 
-Windows Process Loopback APIを使用して、**特定のアプリケーションの音声のみを録音**できるようになりました！
-
-**動作確認済みアプリ:**
-- ✅ Spotify - 音楽のみを録音（Discord音声を除外）
-- ✅ Firefox/Chrome - ブラウザ音声のみを録音
-- ✅ ゲーム - ゲーム音声のみを録音（ボイスチャット除外）
-
-**必要環境:** Windows 10 2004 (Build 19041) 以降
-
-詳細は[技術調査レポート](docs/PROCESS_LOOPBACK_INVESTIGATION.md)をご覧ください。
+詳細な技術仕様は [技術調査レポート](docs/PROCESS_LOOPBACK_INVESTIGATION.md) を参照してください。
 
 ---
 
@@ -149,96 +140,86 @@ python setup.py build_ext --inplace
 
 ---
 
-## 🎯 使い方
+## API 使用方法
 
-### Level 1: 超簡単 - 関数API
-
-**最も簡単な方法** - 初心者向け
+### 高レベル API (シンプル関数)
 
 ```python
 import pypac
 
-# 📝 5秒間録音して保存（システム全体）
-pypac.record_to_file("my_recording.wav", duration=5)
+# システム全体のオーディオ録音
+pypac.record_to_file("output.wav", duration=5)
 
-# 🎯 特定アプリの音声のみ録音（NEW!）
+# プロセス固有録音（プロセス名指定）
 pypac.record_process("spotify", "spotify_only.wav", duration=10)
 
-# プロセスIDで録音（より正確）
+# プロセス固有録音（PID指定）
 pypac.record_process_id(51716, "spotify_by_pid.wav", duration=10)
 
-# 🔊 アクティブなアプリを確認
+# アクティブオーディオセッション取得
 apps = pypac.get_active_apps()
-print(f"音声再生中: {apps}")
+print(f"Active sessions: {apps}")
 
-# 🎚️ Spotifyの音量を50%に
-pypac.set_app_volume("spotify", 0.5)
+# アプリケーション音量制御
+pypac.set_app_volume("spotify", 0.5)  # 50%
 
-# 🔍 Firefoxの情報を取得
+# セッション情報取得
 firefox = pypac.find_app("firefox")
 if firefox:
-    print(f"Firefox音量: {firefox['volume_percent']}%")
+    print(f"Firefox volume: {firefox['volume_percent']}%")
 
-# 📊 全セッションをリスト
+# 全オーディオセッション列挙
 sessions = pypac.list_audio_sessions()
 for s in sessions:
     print(f"{s['process_name']}: {s['volume_percent']}%")
-# 出力例:
-# firefox.exe: 50%
-# spotify.exe: 100%
-# discord.exe: 75%
 ```
 
-### Level 2: 柔軟 - クラスAPI
-
-**より細かい制御** - 中級者向け
+### クラスベース API (詳細制御)
 
 ```python
 import pypac
 
-# セッション管理
+# SessionManager による セッション管理
 manager = pypac.SessionManager()
 
-# アクティブなセッションを取得
+# アクティブセッション列挙
 active = manager.get_active_sessions()
 for session in active:
-    print(f"🎵 {session.process_name}")
-    print(f"   音量: {session.volume * 100:.0f}%")
-    print(f"   ミュート: {session.is_muted}")
+    print(f"{session.process_name}")
+    print(f"  Volume: {session.volume * 100:.0f}%")
+    print(f"  Muted: {session.is_muted}")
 
-# 特定アプリを検索して制御
+# セッション検索と制御
 discord = manager.find_session("discord")
 if discord:
-    manager.set_volume("discord", 0.3)  # 30%に設定
-    manager.mute_session("discord", True)  # ミュート
+    manager.set_volume("discord", 0.3)  # 30%
+    manager.mute_session("discord", True)
 
-# オーディオ録音（詳細制御）
+# AudioRecorder による詳細録音制御
 recorder = pypac.AudioRecorder()
 recorder.start(duration=10)
 
 while recorder.is_recording:
-    print(f"録音中... {recorder.recording_time:.1f}秒 "
-          f"({recorder.sample_count} サンプル)")
+    print(f"Recording: {recorder.recording_time:.1f}s "
+          f"({recorder.sample_count} samples)")
     time.sleep(1)
 
 audio_data = recorder.stop()
 if len(audio_data) > 0:
-    pypac.utils.save_to_wav(audio_data, "detailed_recording.wav")
-    print(f"録音保存: {len(audio_data)} サンプル")
+    pypac.utils.save_to_wav(audio_data, "output.wav")
+    print(f"Saved: {len(audio_data)} samples")
 ```
 
-### Level 3: 完全制御 - ネイティブAPI
-
-**最大限の制御** - 上級者向け
+### ネイティブ API (低レベル制御)
 
 <details>
-<summary>クリックして展開</summary>
+<summary>詳細を表示</summary>
 
 ```python
 import pypac._native as native
 import numpy as np
 
-# 低レベルセッション列挙
+# SessionEnumerator による直接セッション制御
 enumerator = native.SessionEnumerator()
 sessions = enumerator.enumerate_sessions()
 
@@ -250,7 +231,7 @@ for session in sessions:
         enumerator.set_session_volume(session.process_id, 0.5)
         enumerator.set_session_mute(session.process_id, False)
 
-# 低レベルループバック録音
+# SimpleLoopback による低レベル録音
 loopback = native.SimpleLoopback()
 if loopback.start():
     time.sleep(5)
@@ -258,7 +239,7 @@ if loopback.start():
     # NumPy配列として取得
     audio_buffer = loopback.get_buffer()
     
-    # カスタム処理
+    # 信号処理
     rms = np.sqrt(np.mean(audio_buffer**2))
     peak = np.max(np.abs(audio_buffer))
     

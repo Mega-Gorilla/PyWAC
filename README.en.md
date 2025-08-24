@@ -80,31 +80,22 @@ print(f"Playing audio: {', '.join(apps)}")
 
 ## Key Features
 
-<div align="center">
+### Process-Specific Audio Recording via Process Loopback API
 
-| Feature | Status | Ease of Use |
-|---------|--------|-------------|
-| System Audio Recording | ✅ Complete | ⭐ |
-| Per-App Volume Control | ✅ Complete | ⭐ |
-| Audio Session Listing | ✅ Complete | ⭐ |
-| Per-App Mute | ✅ Complete | ⭐ |
-| **Process-Specific Recording** | **✅ Complete** | ⭐⭐ |
-| Real-time Analysis | ✅ Complete | ⭐⭐ |
+Implemented process-specific audio capture using the Windows Process Loopback API, available in Windows 10 2004 (Build 19041) and later. This enables isolation and capture of audio streams from individual processes, allowing separation of game audio from voice chat.
 
-</div>
+**Technical Specifications:**
+- Audio session management via Windows Audio Session API (WASAPI)
+- Asynchronous audio interface initialization using `ActivateAudioInterfaceAsync`
+- Process-specific capture through `AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK`
+- Fixed format: 48kHz / 32-bit float / stereo (due to `GetMixFormat()` returning E_NOTIMPL)
 
-### Process-Specific Recording Now Works!
+**Implementation Details:**
+- Low-level implementation in C++17 (`src/process_loopback_v2.cpp`)
+- Python bindings via pybind11
+- COM multithreaded environment support (`COINIT_MULTITHREADED`)
 
-Using Windows Process Loopback API, you can now **record audio from specific applications only**!
-
-**Tested Applications:**
-- ✅ Spotify - Record music only (exclude Discord voice)
-- ✅ Firefox/Chrome - Record browser audio only
-- ✅ Games - Record game audio only (exclude voice chat)
-
-**Requirements:** Windows 10 2004 (Build 19041) or later
-
-See the [technical investigation report](docs/PROCESS_LOOPBACK_INVESTIGATION.md) for details.
+For detailed technical specifications, see the [Technical Investigation Report](docs/PROCESS_LOOPBACK_INVESTIGATION.md).
 
 ---
 
@@ -149,91 +140,86 @@ python setup.py build_ext --inplace
 
 ---
 
-## Usage
+## API Usage
 
-### Level 1: Super Simple - Function API
-
-**The easiest way** - For beginners
+### High-Level API (Simple Functions)
 
 ```python
 import pypac
 
-# Record for 5 seconds (system-wide)
-pypac.record_to_file("my_recording.wav", duration=5)
+# System-wide audio recording
+pypac.record_to_file("output.wav", duration=5)
 
-# Record specific app audio only
+# Process-specific recording (by name)
 pypac.record_process("spotify", "spotify_only.wav", duration=10)
 
-# Record by process ID (more accurate)
+# Process-specific recording (by PID)
 pypac.record_process_id(51716, "spotify_by_pid.wav", duration=10)
 
-# Check active apps
+# Get active audio sessions
 apps = pypac.get_active_apps()
-print(f"Playing audio: {apps}")
+print(f"Active sessions: {apps}")
 
-# Set Spotify volume to 50%
-pypac.set_app_volume("spotify", 0.5)
+# Application volume control
+pypac.set_app_volume("spotify", 0.5)  # 50%
 
-# Get Firefox info
+# Session information retrieval
 firefox = pypac.find_app("firefox")
 if firefox:
     print(f"Firefox volume: {firefox['volume_percent']}%")
 
-# List all sessions
+# Enumerate all audio sessions
 sessions = pypac.list_audio_sessions()
 for s in sessions:
     print(f"{s['process_name']}: {s['volume_percent']}%")
 ```
 
-### Level 2: Flexible - Class API
-
-**More control** - For intermediate users
+### Class-Based API (Detailed Control)
 
 ```python
 import pypac
 
-# Session management
+# Session management via SessionManager
 manager = pypac.SessionManager()
 
-# Get active sessions
+# Enumerate active sessions
 active = manager.get_active_sessions()
 for session in active:
-    print(f"App: {session.process_name}")
+    print(f"{session.process_name}")
     print(f"  Volume: {session.volume * 100:.0f}%")
     print(f"  Muted: {session.is_muted}")
 
-# Find and control specific app
+# Session search and control
 discord = manager.find_session("discord")
 if discord:
-    manager.set_volume("discord", 0.3)  # Set to 30%
-    manager.mute_session("discord", True)  # Mute
+    manager.set_volume("discord", 0.3)  # 30%
+    manager.mute_session("discord", True)
 
-# Audio recording with details
+# Detailed recording control via AudioRecorder
 recorder = pypac.AudioRecorder()
 recorder.start(duration=10)
 
 while recorder.is_recording:
-    print(f"Recording... {recorder.recording_time:.1f}s "
+    print(f"Recording: {recorder.recording_time:.1f}s "
           f"({recorder.sample_count} samples)")
     time.sleep(1)
 
 audio_data = recorder.stop()
 if len(audio_data) > 0:
-    pypac.utils.save_to_wav(audio_data, "detailed_recording.wav")
+    pypac.utils.save_to_wav(audio_data, "output.wav")
+    print(f"Saved: {len(audio_data)} samples")
 ```
 
-### Level 3: Full Control - Native API
-
-**Maximum control** - For advanced users
+### Native API (Low-Level Control)
 
 <details>
-<summary>Click to expand</summary>
+<summary>Show details</summary>
 
 ```python
 import pypac._native as native
 import numpy as np
 
-# Low-level session enumeration
+# Direct session control via SessionEnumerator
 enumerator = native.SessionEnumerator()
 sessions = enumerator.enumerate_sessions()
 
@@ -245,7 +231,7 @@ for session in sessions:
         enumerator.set_session_volume(session.process_id, 0.5)
         enumerator.set_session_mute(session.process_id, False)
 
-# Low-level loopback recording
+# Low-level recording via SimpleLoopback
 loopback = native.SimpleLoopback()
 if loopback.start():
     time.sleep(5)
@@ -253,7 +239,7 @@ if loopback.start():
     # Get as NumPy array
     audio_buffer = loopback.get_buffer()
     
-    # Custom processing
+    # Signal processing
     rms = np.sqrt(np.mean(audio_buffer**2))
     peak = np.max(np.abs(audio_buffer))
     
