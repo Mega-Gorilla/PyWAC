@@ -133,7 +133,8 @@ class RecordingManager:
             
             if has_data:
                 pywac.utils.save_to_wav(audio_data, filename, 48000)
-                self.audio_buffer = np.array(audio_data, dtype=np.float32)
+                # WAVファイルから読み込んで正しいフォーマットを保証
+                self._load_wav_to_buffer(filename)
                 self.recording_status = f"録音成功: {Path(filename).name}"
                 self.recording_filename = filename
             else:
@@ -250,14 +251,19 @@ class RecordingManager:
         
         # 音声データを適切な形式に変換
         if isinstance(self.audio_buffer, np.ndarray):
-            if self.audio_buffer.dtype == np.float32:
+            # すでにint16の場合はそのまま使用
+            if self.audio_buffer.dtype == np.int16:
+                audio_output = self.audio_buffer
+            elif self.audio_buffer.dtype == np.float32:
                 audio_output = (self.audio_buffer * 32767).astype(np.int16)
             else:
-                audio_output = self.audio_buffer
+                audio_output = self.audio_buffer.astype(np.int16)
         else:
-            audio_output = np.array(self.audio_buffer)
+            # リストの場合、float32と仮定
+            audio_array = np.array(self.audio_buffer, dtype=np.float32)
+            audio_output = (audio_array * 32767).astype(np.int16)
         
-        # ステレオ形式に変換
+        # ステレオ形式に変換（必要な場合）
         if len(audio_output.shape) == 1:
             audio_output = np.column_stack((audio_output, audio_output))
         
@@ -545,15 +551,20 @@ class PyWACDemoApp:
             return [f"エラー: {str(e)}"]
     
     def list_recordings(self) -> List[str]:
-        """録音ファイル一覧を取得"""
+        """録音ファイル一覧を取得（新しい順）"""
         try:
             recordings = []
-            for file in self.recordings_dir.glob("*.wav"):
+            wav_files = list(self.recordings_dir.glob("*.wav"))
+            
+            # 更新日時でソート（新しい順）
+            wav_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+            
+            for file in wav_files:
                 size = file.stat().st_size / 1024
                 mtime = datetime.fromtimestamp(file.stat().st_mtime)
-                recordings.append(f"{file.name} ({size:.1f}KB) - {mtime.strftime('%Y-%m-%d %H:%M')}")
+                recordings.append(f"{file.name} ({size:.1f}KB) - {mtime.strftime('%Y-%m-%d %H:%M:%S')}")
             
-            return sorted(recordings, reverse=True) if recordings else ["録音ファイルがありません"]
+            return recordings if recordings else ["録音ファイルがありません"]
         except Exception as e:
             return [f"エラー: {str(e)}"]
     
@@ -675,7 +686,9 @@ def create_interface():
                             choices=app.list_recordings(),
                             interactive=True
                         )
-                        refresh_recordings_btn = gr.Button("🔄 リスト更新", size="sm")
+                        with gr.Row():
+                            refresh_recordings_btn = gr.Button("🔄 リスト更新", size="sm")
+                            load_recording_btn = gr.Button("📂 読み込み", size="sm")
         
         # 音量制御タブ
         with gr.Tab("音量制御"):
@@ -721,15 +734,15 @@ def create_interface():
                 status, _ = app.recording_manager.start_system_recording(duration)
             elif mode == "プロセス録音":
                 if not process:
-                    return "プロセスを選択してください", None, "", gr.Timer(active=False)
+                    return "プロセスを選択してください", None, "", gr.Timer(active=False), gr.update()
                 status, _ = app.recording_manager.start_process_recording(process, duration)
             elif mode == "コールバック録音":
                 status, _, _ = app.recording_manager.start_callback_recording(duration, monitoring)
             else:
-                return "不明なモード", None, "", gr.Timer(active=False)
+                return "不明なモード", None, "", gr.Timer(active=False), gr.update()
             
             status_html = app.recording_manager._create_status_html(f"🔴 {status}", "rgba(76, 175, 80, 0.2)", "#4caf50")
-            return status_html, None, "", gr.Timer(active=True)
+            return status_html, None, "", gr.Timer(active=True), gr.update(choices=app.list_recordings())
         
         def update_recording_status():
             """録音ステータスを更新"""
@@ -781,12 +794,12 @@ def create_interface():
         record_btn.click(
             start_recording,
             inputs=[recording_mode, duration_slider, process_dropdown, enable_monitoring],
-            outputs=[record_status, audio_output, monitoring_output, recording_timer]
+            outputs=[record_status, audio_output, monitoring_output, recording_timer, recordings_list]
         )
         
         recording_timer.tick(
             update_recording_status,
-            outputs=[record_status, audio_output, monitoring_output, recording_timer]
+            outputs=[record_status, audio_output, monitoring_output, recording_timer, recordings_list]
         )
         
         set_volume_btn.click(
@@ -795,9 +808,41 @@ def create_interface():
             outputs=volume_status
         )
         
+        def load_selected_recording(filename):
+            """選択した録音ファイルを読み込み"""
+            if not filename or "録音ファイルがありません" in filename:
+                return None
+            
+            try:
+                # ファイル名から実際のパスを取得
+                file_path = app.recordings_dir / filename.split(" (")[0]
+                if file_path.exists():
+                    with wave.open(str(file_path), 'rb') as wf:
+                        frames = wf.readframes(wf.getnframes())
+                        audio_data = np.frombuffer(frames, dtype=np.int16)
+                        sample_rate = wf.getframerate()
+                        nchannels = wf.getnchannels()
+                        
+                        if nchannels == 2:
+                            audio_data = audio_data.reshape(-1, 2)
+                        else:
+                            audio_data = np.column_stack((audio_data, audio_data))
+                        
+                        return (sample_rate, audio_data)
+                return None
+            except Exception as e:
+                print(f"録音ファイル読み込みエラー: {e}")
+                return None
+        
         refresh_recordings_btn.click(
-            lambda: gr.update(choices=app.list_recordings()),
+            lambda: gr.update(choices=app.list_recordings(), value=None),
             outputs=recordings_list
+        )
+        
+        load_recording_btn.click(
+            load_selected_recording,
+            inputs=recordings_list,
+            outputs=audio_output
         )
     
     return demo
