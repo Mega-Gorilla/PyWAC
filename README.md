@@ -30,10 +30,9 @@ pywac.record_process("game.exe", "game_only.wav", duration=10)
 pywac.set_app_volume("spotify", 0.5)
 
 # アクティブなオーディオセッションを確認
-sessions = pywac.get_active_sessions()
-for s in sessions:
-    print(f"{s['process_name']}: 音量{s['volume_percent']:.0f}%")
-# 出力例: Spotify.exe: 音量50%
+active = pywac.get_active_sessions()
+print(f"アクティブなセッション: {', '.join(active)}")
+# 出力例: アクティブなセッション: Spotify.exe, Chrome.exe
 ```
 
 **それだけです！** 複雑な設定は不要です。
@@ -156,10 +155,10 @@ pywac.record_process("spotify", "spotify_only.wav", duration=10)
 # プロセス固有録音（PID指定）
 pywac.record_process_id(51716, "spotify_by_pid.wav", duration=10)
 
-# アクティブオーディオセッション取得
-sessions = pywac.get_active_sessions()
-for s in sessions:
-    print(f"{s['process_name']} (PID: {s['process_id']})")
+# アクティブオーディオセッション取得（プロセス名のリスト）
+active = pywac.get_active_sessions()
+for app in active:
+    print(f"Active: {app}")
 
 # アプリケーション音量制御
 pywac.set_app_volume("spotify", 0.5)  # 50%
@@ -194,7 +193,7 @@ for session in active:
 discord = manager.find_session("discord")
 if discord:
     manager.set_volume("discord", 0.3)  # 30%
-    manager.mute_session("discord", True)
+    manager.set_mute("discord", True)
 
 # AudioRecorder による詳細録音制御
 recorder = pywac.AudioRecorder()
@@ -280,7 +279,7 @@ def record_with_callback_demo():
         print(f"平均音量: {db:.1f} dB")
         
         # WAVファイルに保存
-        pywac.save_to_wav(audio_data, "callback_recording.wav", 48000)
+        pywac.utils.save_to_wav(audio_data, "callback_recording.wav", 48000)
         print("✅ 録音をcallback_recording.wavに保存！")
     
     # 5秒間録音（非同期）
@@ -388,7 +387,8 @@ def auto_adjust_volume():
     
     if 22 <= hour or hour < 6:
         # 深夜は全体的に音量を下げる
-        for app in pywac.get_active_apps():
+        active = pywac.get_active_sessions()
+        for app in active:
             pywac.set_app_volume(app, 0.3)
         print("🌙 深夜モード: 音量30%")
     
@@ -401,9 +401,9 @@ def auto_adjust_volume():
     
     else:
         # 通常時間
-        sessions = pywac.get_active_sessions()
-        for s in sessions:
-            pywac.set_app_volume(s['process_name'], 0.7)
+        active = pywac.get_active_sessions()
+        for app in active:
+            pywac.set_app_volume(app, 0.7)
         print("🏠 通常モード: 音量70%")
 
 # スケジュール設定
@@ -431,7 +431,7 @@ schedule.every().hour.do(auto_adjust_volume)
 | `unmute_app(app)` | ミュート解除 | `pywac.unmute_app("spotify")` |
 | `find_audio_session(app)` | セッション情報取得 | `info = pywac.find_audio_session("firefox")` |
 | `record_with_callback(duration, callback)` | コールバック付き録音 | `pywac.record_with_callback(5, on_complete)` |
-| `save_to_wav(data, filename, sample_rate)` | WAVファイル保存 | `pywac.save_to_wav(audio_data, "out.wav", 48000)` |
+| `utils.save_to_wav(data, filename, sample_rate)` | WAVファイル保存 | `pywac.utils.save_to_wav(audio_data, "out.wav", 48000)` |
 
 ### 🔵 クラスAPI
 
@@ -446,7 +446,7 @@ manager = pywac.SessionManager()
 | `list_sessions(active_only=False)` | セッション一覧取得 |
 | `find_session(app_name)` | アプリ検索 |
 | `set_volume(app_name, volume)` | 音量設定 |
-| `mute_session(app_name, mute)` | ミュート制御 |
+| `set_mute(app_name, mute)` | ミュート制御 |
 | `get_active_sessions()` | アクティブセッション取得 |
 
 #### AudioRecorder

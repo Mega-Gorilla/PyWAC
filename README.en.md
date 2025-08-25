@@ -29,10 +29,10 @@ pywac.record_process("game.exe", "game_only.wav", duration=10)
 # Adjust app volume
 pywac.set_app_volume("spotify", 0.5)
 
-# Check running audio sessions
-apps = pywac.get_active_sessions()
-print(f"Playing audio: {', '.join(apps)}")
-# Output: Playing audio: Spotify.exe, Chrome.exe, Discord.exe
+# Check active audio sessions
+active = pywac.get_active_sessions()
+print(f"Active sessions: {', '.join(active)}")
+# Output: Active sessions: Spotify.exe, Chrome.exe
 ```
 
 **That's it!** No complex configuration needed.
@@ -155,15 +155,16 @@ pywac.record_process("spotify", "spotify_only.wav", duration=10)
 # Process-specific recording (by PID)
 pywac.record_process_id(51716, "spotify_by_pid.wav", duration=10)
 
-# Get active audio sessions
-apps = pywac.get_active_sessions()
-print(f"Active sessions: {apps}")
+# Get active audio sessions (list of process names)
+active = pywac.get_active_sessions()
+for app in active:
+    print(f"Active: {app}")
 
 # Application volume control
 pywac.set_app_volume("spotify", 0.5)  # 50%
 
 # Session information retrieval
-firefox = pywac.find_app("firefox")
+firefox = pywac.find_audio_session("firefox")
 if firefox:
     print(f"Firefox volume: {firefox['volume_percent']}%")
 
@@ -192,7 +193,7 @@ for session in active:
 discord = manager.find_session("discord")
 if discord:
     manager.set_volume("discord", 0.3)  # 30%
-    manager.mute_session("discord", True)
+    manager.set_mute("discord", True)
 
 # Detailed recording control via AudioRecorder
 recorder = pywac.AudioRecorder()
@@ -255,7 +256,6 @@ if loopback.start():
 
 ```python
 import pywac
-import process_loopback_v2 as loopback
 
 # Method 1: High-level API (working!)
 def record_specific_app(app_name, output_file, duration=10):
@@ -266,33 +266,30 @@ def record_specific_app(app_name, output_file, duration=10):
     else:
         print(f"❌ Recording failed - Check if {app_name} is playing audio")
 
-# Method 2: Low-level API (currently working)
-def record_with_process_loopback():
-    """Direct Process Loopback API usage"""
-    # List audio sessions
-    processes = loopback.list_audio_processes()
-    
-    print("Available apps for recording:")
-    for proc in processes:
-        print(f"  - {proc.name} (PID: {proc.pid})")
-    
-    # Record Spotify (example)
-    spotify_pid = 51716  # Replace with actual PID
-    capture = loopback.ProcessCapture()
-    
-    if capture.start(spotify_pid):
-        print("Recording started...")
-        import time
-        time.sleep(10)  # Record for 10 seconds
-        
-        audio_data = capture.get_buffer()
-        capture.stop()
-        
-        # Save to WAV file (save numpy array directly)
+# Method 2: Callback recording (new feature!)
+def record_with_callback_demo():
+    """Record with callback on completion"""
+    def on_recording_complete(audio_data):
+        print(f"Recording complete: {len(audio_data)} samples")
+        # Analyze audio
         import numpy as np
-        audio_array = np.array(audio_data, dtype=np.float32)
-        pywac.utils.save_to_wav(audio_array, "spotify_only.wav", sample_rate=48000)
-        print("✅ Spotify audio saved successfully!")
+        audio_array = np.array(audio_data)
+        rms = np.sqrt(np.mean(audio_array ** 2))
+        db = 20 * np.log10(rms + 1e-10)
+        print(f"Average volume: {db:.1f} dB")
+        
+        # Save to WAV file
+        pywac.utils.save_to_wav(audio_data, "callback_recording.wav", 48000)
+        print("✅ Recording saved to callback_recording.wav!")
+    
+    # Record for 5 seconds (asynchronously)
+    pywac.record_with_callback(5, on_recording_complete)
+    print("Recording started (background)...")
+    
+    # Wait for completion
+    import time
+    time.sleep(6)
+    print("✅ Process complete!")
 
 # Example: Record game audio only (no Discord voice)
 record_specific_app("game.exe", "game_audio.wav", 30)
@@ -321,8 +318,9 @@ class StreamAudioMixer:
         # Discord at 30%
         pywac.set_app_volume("discord", 0.3)
         
-        # Mute Spotify
-        pywac.mute_app("spotify")
+        # Mute Spotify (via SessionManager)
+        manager = pywac.SessionManager()
+        manager.set_mute("spotify", True)
         
         print("Streaming audio setup complete!")
     
@@ -391,8 +389,8 @@ audio_meter(10)
 | `list_audio_sessions()` | Get all audio sessions | `sessions = pywac.list_audio_sessions()` |
 | `get_active_sessions()` | List active app names | `apps = pywac.get_active_sessions()` |
 | `set_app_volume(app, volume)` | Set app volume (0.0-1.0) | `pywac.set_app_volume("chrome", 0.5)` |
-| `mute_app(app)` | Mute app | `pywac.mute_app("spotify")` |
-| `find_app(app)` | Get app info | `info = pywac.find_app("firefox")` |
+| `mute_app(app)` | Mute app | `manager = pywac.SessionManager(); manager.set_mute("spotify", True)` |
+| `find_audio_session(app)` | Get app info | `info = pywac.find_audio_session("firefox")` |
 
 #### Session Management Functions
 
@@ -400,16 +398,16 @@ audio_meter(10)
 |----------|-------------|---------|  
 | `get_active_sessions()` | List active audio session names | `sessions = pywac.get_active_sessions()` |
 | `list_audio_sessions()` | Get detailed session information | `sessions = pywac.list_audio_sessions()` |
-| `find_app(app_name)` | Find session by name | `session = pywac.find_app("spotify")` |
+| `find_audio_session(app_name)` | Find session by name | `session = pywac.find_audio_session("spotify")` |
 | `set_app_volume(app, volume)` | Set app volume (0.0-1.0) | `pywac.set_app_volume("chrome", 0.5)` |
-| `mute_app(app_name)` | Mute application | `pywac.mute_app("discord")` |
-| `unmute_app(app_name)` | Unmute application | `pywac.unmute_app("discord")` |
+| `mute_app(app_name)` | Mute application | `manager = pywac.SessionManager(); manager.set_mute("discord", True)` |
+| `unmute_app(app_name)` | Unmute application | `manager = pywac.SessionManager(); manager.set_mute("discord", False)` |
 
 #### Utility Functions
 
 | Function | Description | Example |
 |----------|-------------|---------|  
-| `save_to_wav(data, filename, sample_rate)` | Save audio to WAV | `pywac.save_to_wav(audio_data, "out.wav")` |
+| `save_to_wav(data, filename, sample_rate)` | Save audio to WAV | `pywac.utils.save_to_wav(audio_data, "out.wav", 48000)` |
 | `calculate_rms(audio_buffer)` | Calculate RMS value | `rms = pywac.calculate_rms(buffer)` |
 | `calculate_db(audio_buffer)` | Calculate dB level | `db = pywac.calculate_db(buffer)` |
 
@@ -429,7 +427,7 @@ def audio_callback(audio_data):
         print(f"Audio level: {db:.1f} dB")
         
         # Save to file
-        pywac.save_to_wav(audio_data, "callback_recording.wav")
+        pywac.utils.save_to_wav(audio_data, "callback_recording.wav", 48000)
         print("Audio saved!")
 
 # Record with callback
