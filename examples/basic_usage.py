@@ -52,7 +52,7 @@ def demo_simple_api():
     # Record audio (short demo)
     print("\n5. Recording 2 seconds of audio:")
     audio_data = pywac.record_audio(2)
-    print(f"  Recorded {len(audio_data)} samples")
+    print(f"  Recorded {audio_data.duration:.1f} seconds ({audio_data.num_frames} frames)")
     
     # Save to file
     print("\n6. Recording to file:")
@@ -104,12 +104,12 @@ def demo_class_api():
     
     # Stop and get audio
     audio_data = recorder.stop()
-    print(f"\n  Recording complete: {len(audio_data)} samples")
+    print(f"\n  Recording complete: {audio_data.num_frames} frames ({audio_data.duration:.1f}s)")
     
     # Save to file
-    if len(audio_data) > 0:
+    if audio_data.num_frames > 0:
         filename = f"class_demo_{int(time.time())}.wav"
-        pywac.utils.save_to_wav(audio_data, filename)
+        audio_data.save(filename)
         print(f"  Saved to: {filename}")
     else:
         print("  No audio data to save")
@@ -125,7 +125,7 @@ def demo_advanced_features():
     print("\n1. Async recording with callback:")
     
     def on_recording_complete(audio_data):
-        print(f"  Callback: Recording complete with {len(audio_data)} samples")
+        print(f"  Callback: Recording complete with {audio_data.duration:.1f} seconds")
     
     pywac.record_with_callback(2, on_recording_complete)
     print("  Recording started asynchronously...")
@@ -140,28 +140,24 @@ def demo_advanced_features():
         print("  Spotify not found")
     
     # Utility functions
-    print("\n3. Utility functions:")
+    print("\n3. Audio data statistics:")
     
-    # Load and save WAV
+    # Load and analyze WAV
     try:
-        audio_data, sample_rate, channels = pywac.utils.load_wav("demo_recording.wav")
-        print(f"  Loaded WAV: {len(audio_data)} samples, {sample_rate}Hz, {channels} channels")
+        from pywac.audio_data import AudioData
+        audio_data = AudioData.load("demo_recording.wav")
+        print(f"  Loaded WAV: {audio_data.num_frames} frames, {audio_data.sample_rate}Hz, {audio_data.channels} channels")
         
-        # Calculate audio properties
-        rms = pywac.utils.calculate_rms(audio_data)
-        db = pywac.utils.calculate_db(audio_data)
-        duration = pywac.utils.get_audio_duration(audio_data, sample_rate, channels)
+        # Get audio statistics
+        stats = audio_data.get_statistics()
         
-        print(f"  RMS: {rms:.4f}")
-        print(f"  Level: {db:.1f} dB")
-        print(f"  Duration: {duration:.2f} seconds")
-        
-        # Normalize audio
-        normalized = pywac.utils.normalize_audio(audio_data, 0.8)
-        print("  Audio normalized to 80% peak level")
+        print(f"  RMS: {stats['rms']:.4f}")
+        print(f"  Level: {stats['rms_db']:.1f} dB")
+        print(f"  Peak: {stats['peak_db']:.1f} dB")
+        print(f"  Duration: {stats['duration']:.2f} seconds")
         
     except FileNotFoundError:
-        print("  (demo_recording.wav not found - skipping WAV utilities)")
+        print("  (demo_recording.wav not found - skipping audio analysis)")
 
 
 def main():

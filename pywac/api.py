@@ -5,9 +5,11 @@ Provides easy-to-use functions for common audio tasks.
 
 import os
 import sys
+import numpy as np
 from typing import List, Optional, Dict, Any
 from .sessions import SessionManager
 from .recorder import AudioRecorder
+from .audio_data import AudioData
 
 
 def _import_process_loopback():
@@ -157,7 +159,7 @@ def unmute_app(app_name: str) -> bool:
 
 # Audio recording functions
 
-def _record_with_loopback(pid: int, duration: float) -> Optional[List[float]]:
+def _record_with_loopback(pid: int, duration: float) -> Optional[AudioData]:
     """
     Internal function to record audio using process loopback.
     
@@ -166,14 +168,13 @@ def _record_with_loopback(pid: int, duration: float) -> Optional[List[float]]:
         duration: Recording duration in seconds
         
     Returns:
-        List of audio samples or None if failed
+        AudioData object or None if failed
     """
     try:
         loopback = _import_process_loopback()
         if loopback is None:
             return None
         
-        import numpy as np
         import time
         
         # Create capture instance
@@ -190,16 +191,20 @@ def _record_with_loopback(pid: int, duration: float) -> Optional[List[float]]:
         audio_data = capture.get_buffer()
         capture.stop()
         
-        # Convert to list if needed
-        if isinstance(audio_data, np.ndarray):
-            return audio_data.tolist()
-        return audio_data
+        # Convert to AudioData
+        if audio_data is not None and len(audio_data) > 0:
+            return AudioData.from_interleaved(
+                data=audio_data,
+                sample_rate=48000,
+                channels=2
+            )
+        return None
         
     except Exception:
         return None
 
 
-def record_audio(duration: float) -> List[float]:
+def record_audio(duration: float) -> AudioData:
     """
     Record system-wide audio for a specified duration.
     
@@ -207,11 +212,12 @@ def record_audio(duration: float) -> List[float]:
         duration: Recording duration in seconds
         
     Returns:
-        List of audio samples (float32)
+        AudioData object containing the recorded audio
         
     Example:
-        >>> audio_data = pywac.record_audio(5)  # Record 5 seconds
-        >>> print(f"Recorded {len(audio_data)} samples")
+        >>> audio = pywac.record_audio(5)  # Record 5 seconds
+        >>> print(f"Recorded {audio.duration:.1f} seconds")
+        >>> audio.save("output.wav")
     """
     # Try using process loopback with PID=0 for system-wide recording
     audio_data = _record_with_loopback(0, duration)
@@ -219,7 +225,7 @@ def record_audio(duration: float) -> List[float]:
     if audio_data is not None:
         return audio_data
     
-    # Fallback to old method if loopback failed
+    # Fallback to native recorder if loopback failed
     recorder = _get_audio_recorder()
     return recorder.record(duration)
 
@@ -239,8 +245,12 @@ def record_to_file(filename: str, duration: float) -> bool:
         >>> pywac.record_to_file("output.wav", 10)  # Record 10 seconds
         True
     """
-    # Use record_process_id with PID=0 for system-wide recording
-    return record_process_id(0, filename, duration)
+    try:
+        audio = record_audio(duration)
+        audio.save(filename)
+        return True
+    except Exception:
+        return False
 
 
 def record_process(process_name: str, filename: str, duration: float) -> bool:
@@ -314,35 +324,16 @@ def record_process_id(pid: int, filename: str, duration: float) -> bool:
         # If PID is 0, try fallback for system recording
         if pid == 0:
             try:
-                recorder = _get_audio_recorder()
-                return recorder.record_to_file(filename, duration)
+                audio_data = record_audio(duration)
             except Exception:
-                pass
-        return False
+                return False
+        else:
+            return False
     
     # Save to WAV file
     try:
-        import numpy as np
-        import wave
-        
-        # Convert to numpy array if needed
-        audio_array = np.array(audio_data, dtype=np.float32)
-        
-        # Check if we have data
-        if len(audio_array) == 0:
-            return False
-        
-        # Save to WAV file
-        audio_int16 = (audio_array * 32767).astype(np.int16)
-        
-        with wave.open(filename, 'wb') as wf:
-            wf.setnchannels(2)  # Stereo
-            wf.setsampwidth(2)  # 16-bit
-            wf.setframerate(48000)  # 48kHz
-            wf.writeframes(audio_int16.tobytes())
-        
+        audio_data.save(filename)
         return True
-        
     except Exception:
         return False
 
@@ -476,11 +467,12 @@ def record_with_callback(duration: float, callback) -> None:
     
     Args:
         duration: Recording duration in seconds
-        callback: Function called when recording completes (receives audio data)
+        callback: Function called when recording completes (receives AudioData)
         
     Example:
-        >>> def on_complete(audio_data):
-        ...     print(f"Recording complete: {len(audio_data)} samples")
+        >>> def on_complete(audio):
+        ...     print(f"Recording complete: {audio.duration:.1f} seconds")
+        ...     audio.save("callback_recording.wav")
         >>> pywac.record_with_callback(5, on_complete)
     """
     from .recorder import AsyncAudioRecorder

@@ -13,6 +13,7 @@ from datetime import datetime
 from pathlib import Path
 import threading
 from typing import Optional, List, Dict, Any, Tuple
+from pywac.audio_data import AudioData
 
 # Pre-import process_loopback_v2 to avoid threading issues
 try:
@@ -124,15 +125,9 @@ class RecordingManager:
         """システム音声を録音（バックグラウンド）"""
         try:
             audio_data = pywac.record_audio(duration)
-            # NumPy配列とリストの両方に対応
-            has_data = False
-            if isinstance(audio_data, np.ndarray):
-                has_data = audio_data.size > 0
-            elif isinstance(audio_data, list):
-                has_data = len(audio_data) > 0
             
-            if has_data:
-                pywac.utils.save_to_wav(audio_data, filename, 48000)
+            if audio_data and audio_data.num_frames > 0:
+                audio_data.save(filename)
                 # WAVファイルから読み込んで正しいフォーマットを保証
                 self._load_wav_to_buffer(filename)
                 self.recording_status = f"録音成功: {Path(filename).name}"
@@ -167,15 +162,9 @@ class RecordingManager:
             pywac.record_with_callback(duration, self._audio_callback)
             time.sleep(duration + 0.5)  # コールバック完了まで待機
             
-            # NumPy配列とリストの両方に対応した判定
-            has_data = False
-            if isinstance(self.audio_buffer, np.ndarray):
-                has_data = self.audio_buffer.size > 0
-            elif isinstance(self.audio_buffer, list):
-                has_data = len(self.audio_buffer) > 0
-            
-            if has_data:
-                pywac.utils.save_to_wav(self.audio_buffer, filename, 48000)
+            # AudioDataオブジェクトのチェック
+            if isinstance(self.audio_buffer, AudioData) and self.audio_buffer.num_frames > 0:
+                self.audio_buffer.save(filename)
                 # WAVファイルから読み込んで正しいフォーマットを保証
                 self._load_wav_to_buffer(filename)
                 self.recording_status = f"録音成功: {Path(filename).name}"
@@ -190,37 +179,35 @@ class RecordingManager:
     
     def _audio_callback(self, audio_data):
         """録音完了時のコールバック処理"""
-        # NumPy配列とリストの両方に対応
-        if audio_data is not None:
-            if isinstance(audio_data, np.ndarray):
-                if audio_data.size > 0:
-                    self._process_callback_data(audio_data)
-            elif isinstance(audio_data, list):
-                if len(audio_data) > 0:
-                    self._process_callback_data(audio_data)
+        # AudioDataオブジェクトとして処理
+        if isinstance(audio_data, AudioData) and audio_data.num_frames > 0:
+            self._process_callback_data(audio_data)
         else:
             self.callback_messages.append("録音データが取得できませんでした")
     
-    def _process_callback_data(self, audio_data):
+    def _process_callback_data(self, audio_data: AudioData):
         """コールバックデータを処理"""
         self.audio_buffer = audio_data
         
         if self.monitoring_active:
-            audio_array = np.array(audio_data) if not isinstance(audio_data, np.ndarray) else audio_data
-            rms = np.sqrt(np.mean(audio_array ** 2))
-            db = 20 * np.log10(rms + 1e-10)
+            # AudioDataから統計情報を取得
+            stats = audio_data.get_statistics()
             
-            # サンプル数の取得
-            sample_count = audio_array.size if isinstance(audio_array, np.ndarray) else len(audio_array)
-            self.callback_messages.append(f"録音完了: {sample_count} サンプル, 平均音量: {db:.1f} dB")
+            self.callback_messages.append(
+                f"録音完了: {stats['num_frames']} フレーム, "
+                f"平均音量: {stats['rms_db']:.1f} dB, "
+                f"ピーク: {stats['peak_db']:.1f} dB"
+            )
             
             # 詳細な解析
-            total_samples = audio_array.size if isinstance(audio_array, np.ndarray) else len(audio_array)
-            chunk_size = total_samples // 10
+            audio_float = audio_data.to_float32()
+            samples = audio_float.samples
+            chunk_size = len(samples) // 10
+            
             for i in range(10):
                 start = i * chunk_size
-                end = (i + 1) * chunk_size if i < 9 else total_samples
-                chunk = audio_array[start:end] if audio_array.ndim == 1 else audio_array[start:end, :]
+                end = (i + 1) * chunk_size if i < 9 else len(samples)
+                chunk = samples[start:end]
                 chunk_rms = np.sqrt(np.mean(chunk ** 2))
                 chunk_db = 20 * np.log10(chunk_rms + 1e-10)
                 self.callback_messages.append(f"  セクション {i+1}/10: {chunk_db:.1f} dB")
@@ -228,48 +215,49 @@ class RecordingManager:
     def _load_wav_to_buffer(self, filename: str):
         """WAVファイルをバッファに読み込み"""
         if os.path.exists(filename):
-            with wave.open(filename, 'rb') as wf:
-                frames = wf.readframes(wf.getnframes())
-                nchannels = wf.getnchannels()
-                self.audio_buffer = np.frombuffer(frames, dtype=np.int16)
-                if nchannels == 2:
-                    self.audio_buffer = self.audio_buffer.reshape(-1, 2)
-                self.sample_rate = wf.getframerate()
+            # AudioDataのloadメソッドを使用
+            self.audio_buffer = AudioData.load(filename)
+            self.sample_rate = self.audio_buffer.sample_rate
     
     def get_recording_result(self) -> Tuple[str, Optional[Tuple[int, np.ndarray]]]:
         """録音結果を取得"""
         if self.is_recording:
             return "録音中です", None
         
-        # NumPy配列の場合とリストの場合で判定方法を変える
-        if isinstance(self.audio_buffer, np.ndarray):
+        # AudioDataの場合
+        if isinstance(self.audio_buffer, AudioData):
+            if self.audio_buffer.num_frames == 0:
+                return self.recording_status, None
+            
+            # int16形式に変換してGradioに返す
+            audio_int16 = self.audio_buffer.to_int16()
+            
+            # ステレオ形式を確保
+            if audio_int16.channels == 1:
+                audio_output = np.column_stack((audio_int16.samples, audio_int16.samples))
+            else:
+                audio_output = audio_int16.samples
+            
+            return self.recording_status, (audio_int16.sample_rate, audio_output)
+        
+        # 旧形式のデータ（NumPy配列）の場合
+        elif isinstance(self.audio_buffer, np.ndarray):
             if self.audio_buffer.size == 0:
                 return self.recording_status, None
-        elif isinstance(self.audio_buffer, list):
-            if len(self.audio_buffer) == 0:
-                return self.recording_status, None
-        else:
-            return self.recording_status, None
-        
-        # 音声データを適切な形式に変換
-        if isinstance(self.audio_buffer, np.ndarray):
+            
             # すでにint16の場合はそのまま使用
             if self.audio_buffer.dtype == np.int16:
                 audio_output = self.audio_buffer
-            elif self.audio_buffer.dtype == np.float32:
-                audio_output = (self.audio_buffer * 32767).astype(np.int16)
             else:
                 audio_output = self.audio_buffer.astype(np.int16)
-        else:
-            # リストの場合、float32と仮定
-            audio_array = np.array(self.audio_buffer, dtype=np.float32)
-            audio_output = (audio_array * 32767).astype(np.int16)
+            
+            # ステレオ形式に変換（必要な場合）
+            if len(audio_output.shape) == 1:
+                audio_output = np.column_stack((audio_output, audio_output))
+            
+            return self.recording_status, (self.sample_rate, audio_output)
         
-        # ステレオ形式に変換（必要な場合）
-        if len(audio_output.shape) == 1:
-            audio_output = np.column_stack((audio_output, audio_output))
-        
-        return self.recording_status, (self.sample_rate, audio_output)
+        return self.recording_status, None
     
     def get_recording_progress(self) -> str:
         """録音進捗状況をHTML形式で取得"""

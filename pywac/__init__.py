@@ -20,8 +20,9 @@ if os.path.exists(_native_path):
 
 # Import core components
 from .sessions import SessionManager, AudioSession
-from .recorder import AudioRecorder
-from .utils import save_to_wav, convert_float32_to_int16
+from .recorder import AudioRecorder, AsyncAudioRecorder
+from .audio_data import AudioData
+from .utils import convert_float32_to_int16
 
 # Convenience functions
 from .api import (
@@ -55,6 +56,8 @@ __all__ = [
     'SessionManager',
     'AudioSession',
     'AudioRecorder',
+    'AsyncAudioRecorder',
+    'AudioData',
     
     # Functions - Audio Recording
     'record_to_file',
@@ -79,7 +82,6 @@ __all__ = [
     'unmute_app',
     
     # Utilities
-    'save_to_wav',
     'convert_float32_to_int16',
     'utils'
 ]

@@ -1,13 +1,14 @@
 """
-Audio recording module for PyWAC.
+Audio recording module for PyWAC with unified AudioData format.
 """
 
 import time
 import threading
-from typing import Optional, List, Tuple
+import numpy as np
+from typing import Optional
 from datetime import datetime
 import pywac._native as _native  # Will be the compiled extension
-from .utils import save_to_wav
+from .audio_data import AudioData
 
 
 class AudioRecorder:
@@ -64,17 +65,21 @@ class AudioRecorder:
             self._cleanup()
             raise RuntimeError(f"Failed to start recording: {e}")
     
-    def stop(self) -> List[float]:
+    def stop(self) -> AudioData:
         """
         Stop recording and return the audio data.
         
         Returns:
-            List of audio samples (float32)
+            AudioData object containing the recorded audio
         """
         # Check if there's anything to stop
         if not self._recording_thread and not self._loopback:
-            # Already cleaned up or never started
-            return []
+            # Return empty AudioData
+            return AudioData(
+                samples=np.array([], dtype=np.float32).reshape(0, self.channels),
+                sample_rate=self.sample_rate,
+                channels=self.channels
+            )
         
         # Signal recording to stop
         self._is_recording = False
@@ -131,7 +136,33 @@ class AudioRecorder:
         self._start_time = None
         self._duration = None
     
-    def record(self, duration: float) -> List[float]:
+    def _create_audio_data(self, buffer) -> AudioData:
+        """
+        Create AudioData from raw buffer.
+        
+        Args:
+            buffer: Raw audio buffer from loopback
+            
+        Returns:
+            AudioData object
+        """
+        if not buffer:
+            # Return empty AudioData
+            return AudioData(
+                samples=np.array([], dtype=np.float32).reshape(0, self.channels),
+                sample_rate=self.sample_rate,
+                channels=self.channels
+            )
+        
+        # The buffer from SimpleLoopback is interleaved float32 data
+        # Convert to AudioData format
+        return AudioData.from_interleaved(
+            data=buffer,
+            sample_rate=self.sample_rate,
+            channels=self.channels
+        )
+    
+    def record(self, duration: float) -> AudioData:
         """
         Record audio for a specified duration (blocking).
         
@@ -139,7 +170,7 @@ class AudioRecorder:
             duration: Recording duration in seconds
             
         Returns:
-            List of audio samples (float32)
+            AudioData object containing the recorded audio
         """
         self.start(duration=duration)
         time.sleep(duration)
@@ -158,10 +189,8 @@ class AudioRecorder:
         """
         try:
             audio_data = self.record(duration)
-            if len(audio_data) > 0:
-                save_to_wav(audio_data, filename, self.sample_rate, self.channels)
-                return True
-            return False
+            audio_data.save(filename)
+            return True
         except Exception as e:
             raise RuntimeError(f"Failed to record to file: {e}")
     
@@ -182,14 +211,14 @@ class AudioRecorder:
         """Get current number of recorded samples."""
         return len(self._audio_buffer)
     
-    def get_audio(self) -> List[float]:
+    def get_audio(self) -> AudioData:
         """
         Get current audio buffer without stopping recording.
         
         Returns:
-            Copy of current audio buffer
+            AudioData object with current buffer content
         """
-        return self._audio_buffer.copy()
+        return self._create_audio_data(self._audio_buffer.copy())
     
     def save(self, filename: Optional[str] = None) -> str:
         """
@@ -209,10 +238,10 @@ class AudioRecorder:
             filename += '.wav'
         
         audio_data = self.get_audio()
-        if len(audio_data) == 0:
+        if audio_data.num_frames == 0:
             raise ValueError("No audio data to save")
         
-        save_to_wav(audio_data, filename, self.sample_rate, self.channels)
+        audio_data.save(filename)
         return filename
 
 
@@ -242,6 +271,7 @@ class AsyncAudioRecorder(AudioRecorder):
         def _async_record():
             audio_data = self.record(duration)
             if self.callback:
+                # Callback now receives AudioData object
                 self.callback(audio_data)
         
         thread = threading.Thread(target=_async_record)
