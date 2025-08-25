@@ -158,19 +158,22 @@ Open your browser and navigate to `http://localhost:7860`.
 
 ##### 📊 Session Management
 - View active audio sessions in real-time
-- Monitor process IDs, states, and volume levels
-- Refresh session list with one click
+- Monitor process IDs, states, volume levels, and mute status
+- Auto-refresh feature (5-second interval)
+- Manual refresh with one click
 
 ##### 🎚️ Volume Control
-- Adjust app volume with sliders (0-100%)
-- Toggle mute/unmute with one click
-- Changes apply instantly
+- Select application from dropdown
+- Adjust volume with slider (0-100%)
+- Set volume button for instant application
+- Status display for feedback
 
 ##### 🔴 Recording Features
 Three recording modes available:
 - **System Recording**: Capture all system audio
 - **Process Recording**: Record specific app audio only (exclude Discord, etc.)
 - **Callback Recording**: Record with real-time monitoring
+- Duration settings (1-60 seconds) with preset buttons (5s/10s/30s)
 
 ##### 📈 Real-time Monitoring
 - View audio levels during recording
@@ -184,8 +187,8 @@ Three recording modes available:
 
 ##### 🎨 Modern UI
 - Dark theme support
+- Three organized tabs (Session Management/Recording/Volume Control)
 - Responsive design
-- Multi-language support
 
 ### Sample Scripts
 
