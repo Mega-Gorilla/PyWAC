@@ -176,6 +176,8 @@ class RecordingManager:
             
             if has_data:
                 pywac.utils.save_to_wav(self.audio_buffer, filename, 48000)
+                # WAVファイルから読み込んで正しいフォーマットを保証
+                self._load_wav_to_buffer(filename)
                 self.recording_status = f"録音成功: {Path(filename).name}"
                 self.recording_filename = filename
             else:
