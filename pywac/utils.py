@@ -1,5 +1,5 @@
 """
-Utility functions for PyPAC.
+Utility functions for PyWAC.
 """
 
 import wave

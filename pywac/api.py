@@ -1,5 +1,5 @@
 """
-Simple function API for PyPAC.
+Simple function API for PyWAC.
 Provides easy-to-use functions for common audio tasks.
 """
 
@@ -61,7 +61,7 @@ def list_audio_sessions(active_only: bool = False) -> List[Dict[str, Any]]:
         List of session information dictionaries
         
     Example:
-        >>> sessions = pypac.list_audio_sessions()
+        >>> sessions = pywac.list_audio_sessions()
         >>> for session in sessions:
         ...     print(f"{session['process_name']}: {session['volume_percent']}%")
     """
@@ -94,7 +94,7 @@ def set_app_volume(app_name: str, volume: float) -> bool:
         True if successful, False otherwise
         
     Example:
-        >>> pypac.set_app_volume("firefox", 0.5)  # Set Firefox to 50%
+        >>> pywac.set_app_volume("firefox", 0.5)  # Set Firefox to 50%
         True
     """
     manager = _get_session_manager()
@@ -112,7 +112,7 @@ def get_app_volume(app_name: str) -> Optional[float]:
         Volume level (0.0 to 1.0), or None if app not found
         
     Example:
-        >>> volume = pypac.get_app_volume("firefox")
+        >>> volume = pywac.get_app_volume("firefox")
         >>> print(f"Firefox volume: {volume * 100:.0f}%")
     """
     manager = _get_session_manager()
@@ -130,7 +130,7 @@ def mute_app(app_name: str) -> bool:
         True if successful, False otherwise
         
     Example:
-        >>> pypac.mute_app("discord")
+        >>> pywac.mute_app("discord")
         True
     """
     manager = _get_session_manager()
@@ -148,7 +148,7 @@ def unmute_app(app_name: str) -> bool:
         True if successful, False otherwise
         
     Example:
-        >>> pypac.unmute_app("discord")
+        >>> pywac.unmute_app("discord")
         True
     """
     manager = _get_session_manager()
@@ -210,7 +210,7 @@ def record_audio(duration: float) -> List[float]:
         List of audio samples (float32)
         
     Example:
-        >>> audio_data = pypac.record_audio(5)  # Record 5 seconds
+        >>> audio_data = pywac.record_audio(5)  # Record 5 seconds
         >>> print(f"Recorded {len(audio_data)} samples")
     """
     # Try using process loopback with PID=0 for system-wide recording
@@ -236,7 +236,7 @@ def record_to_file(filename: str, duration: float) -> bool:
         True if successful
         
     Example:
-        >>> pypac.record_to_file("output.wav", 10)  # Record 10 seconds
+        >>> pywac.record_to_file("output.wav", 10)  # Record 10 seconds
         True
     """
     # Use record_process_id with PID=0 for system-wide recording
@@ -256,7 +256,7 @@ def record_process(process_name: str, filename: str, duration: float) -> bool:
         True if successful, False otherwise
         
     Example:
-        >>> pypac.record_process("spotify", "spotify_audio.wav", 10)
+        >>> pywac.record_process("spotify", "spotify_audio.wav", 10)
         True
         
     Note:
@@ -300,7 +300,7 @@ def record_process_id(pid: int, filename: str, duration: float) -> bool:
         True if successful, False otherwise
         
     Example:
-        >>> pypac.record_process_id(12345, "app_audio.wav", 10)
+        >>> pywac.record_process_id(12345, "app_audio.wav", 10)
         True
         
     Note:
@@ -355,7 +355,7 @@ def list_recordable_processes() -> List[Dict[str, Any]]:
         List of process information dictionaries with 'pid' and 'name' keys
         
     Example:
-        >>> processes = pypac.list_recordable_processes()
+        >>> processes = pywac.list_recordable_processes()
         >>> for proc in processes:
         ...     print(f"{proc['name']} (PID: {proc['pid']})")
         
@@ -402,7 +402,7 @@ def find_audio_session(app_name: str) -> Optional[Dict[str, Any]]:
         Session information dictionary, or None if not found
         
     Example:
-        >>> info = pypac.find_audio_session("firefox")
+        >>> info = pywac.find_audio_session("firefox")
         >>> if info:
         ...     print(f"Firefox is {'active' if info['is_active'] else 'inactive'}")
     """
@@ -427,7 +427,7 @@ def get_active_sessions() -> List[str]:
         List of process names with active audio sessions
         
     Example:
-        >>> active = pypac.get_active_sessions()
+        >>> active = pywac.get_active_sessions()
         >>> print(f"Active sessions: {', '.join(active)}")
     """
     sessions = list_audio_sessions(active_only=True)
@@ -455,7 +455,7 @@ def adjust_volume(app_name: str, delta: float) -> Optional[float]:
         New volume level, or None if app not found
         
     Example:
-        >>> new_volume = pypac.adjust_volume("spotify", 0.1)  # Increase by 10%
+        >>> new_volume = pywac.adjust_volume("spotify", 0.1)  # Increase by 10%
         >>> print(f"New volume: {new_volume * 100:.0f}%")
     """
     manager = _get_session_manager()
@@ -481,7 +481,7 @@ def record_with_callback(duration: float, callback) -> None:
     Example:
         >>> def on_complete(audio_data):
         ...     print(f"Recording complete: {len(audio_data)} samples")
-        >>> pypac.record_with_callback(5, on_complete)
+        >>> pywac.record_with_callback(5, on_complete)
     """
     from .recorder import AsyncAudioRecorder
     recorder = AsyncAudioRecorder(callback=callback)

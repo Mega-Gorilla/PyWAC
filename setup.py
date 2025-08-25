@@ -1,5 +1,5 @@
 """
-Setup script for PyPAC - Python Process Audio Capture for Windows
+Setup script for PyWAC - Python Windows Audio Capture
 """
 
 from setuptools import setup, find_packages
@@ -11,9 +11,9 @@ def read_long_description():
     with open("README.md", "r", encoding="utf-8") as fh:
         return fh.read()
 
-# Read version from pypac/__init__.py
+# Read version from pywac/__init__.py
 def get_version():
-    init_path = os.path.join("pypac", "__init__.py")
+    init_path = os.path.join("pywac", "__init__.py")
     if os.path.exists(init_path):
         with open(init_path, "r") as f:
             for line in f:
@@ -24,7 +24,7 @@ def get_version():
 # Define native extensions
 ext_modules = [
     Pybind11Extension(
-        "pypac._pypac_native",  # Will be imported as pypac._pypac_native
+        "pywac._pywac_native",  # Will be imported as pywac._pywac_native
         ["src/audio_session_capture.cpp"],
         include_dirs=[],
         libraries=["ole32", "uuid", "mmdevapi", "psapi"],
@@ -42,25 +42,25 @@ ext_modules = [
 ]
 
 setup(
-    name="pypac",
+    name="pywac",
     version=get_version(),
-    author="PyPAC Contributors",
+    author="PyWAC Contributors",
     author_email="",
-    description="Python Process Audio Capture for Windows - High-level audio control library",
+    description="Python Windows Audio Capture (PyWAC) - Process-specific audio recording and control for Windows",
     long_description=read_long_description(),
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/pypac",
+    url="https://github.com/Mega-Gorilla/pywac",
     project_urls={
-        "Bug Reports": "https://github.com/yourusername/pypac/issues",
-        "Source": "https://github.com/yourusername/pypac",
-        "Documentation": "https://github.com/yourusername/pypac#readme",
+        "Bug Reports": "https://github.com/Mega-Gorilla/pywac/issues",
+        "Source": "https://github.com/Mega-Gorilla/pywac",
+        "Documentation": "https://github.com/Mega-Gorilla/pywac#readme",
     },
     
     # Package configuration
     packages=find_packages(exclude=["tests", "tests.*", "examples", "examples.*", "tools", "tools.*"]),
     package_data={
-        "pypac": ["py.typed"],  # Include type hints
-        "pypac._native": ["*.pyd", "*.so"],  # Include compiled extensions
+        "pywac": ["py.typed"],  # Include type hints
+        "pywac._native": ["*.pyd", "*.so"],  # Include compiled extensions
     },
     include_package_data=True,
     

@@ -1,11 +1,12 @@
 """
-PyPAC - Python Process Audio Capture for Windows
+PyWAC - Python Windows Audio Capture
 
 A high-level Python library for Windows audio capture and control.
+Enables process-specific audio recording and volume control.
 """
 
 __version__ = "0.2.0"
-__author__ = "PyPAC Contributors"
+__author__ = "PyWAC Contributors"
 
 # Import native extension
 import os

@@ -1,11 +1,16 @@
 """
-PyPAC 完全機能デモアプリケーション（日本語版）
-すべてのPyPAC機能を試せる統合デモ
+PyWAC 完全機能デモアプリケーション（日本語版）
+すべてのPyWAC機能を試せる統合デモ
 """
 
 import gradio as gr
-import pypac
+import pywac
 import numpy as np
+# Pre-import process_loopback_v2 to avoid threading issues
+try:
+    import process_loopback_v2
+except ImportError:
+    pass  # Will be imported later if needed
 import wave
 import io
 import time
@@ -16,8 +21,8 @@ from pathlib import Path
 import threading
 from typing import Optional, List, Dict, Any
 
-class PyPACDemoApp:
-    """PyPACのすべての機能を統合したデモアプリケーション"""
+class PyWACDemoApp:
+    """PyWACのすべての機能を統合したデモアプリケーション"""
     
     def __init__(self):
         self.is_recording = False
@@ -34,20 +39,29 @@ class PyPACDemoApp:
         # recordingsディレクトリを作成
         self.recordings_dir = Path(__file__).parent / "recordings"
         self.recordings_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Pre-initialize process_loopback_v2 module to avoid thread initialization issues
+        try:
+            import process_loopback_v2
+            # Create and immediately destroy a test instance to ensure COM is initialized
+            test_capture = process_loopback_v2.ProcessCapture()
+            del test_capture
+        except Exception:
+            pass  # Module will be loaded on-demand if needed
     
     # ===== セッション管理機能 =====
     
     def get_sessions_table(self) -> str:
         """HTMLテーブル形式でセッション一覧を表示"""
         try:
-            sessions = pypac.list_audio_sessions()
+            sessions = pywac.list_audio_sessions()
             if not sessions:
                 return "<p style='color: gray; text-align: center;'>音声セッションが見つかりません</p>"
             
             # HTMLテーブルを構築（ダークテーマ対応）
             html = """
             <style>
-                .pypac-session-table {
+                .pywac-session-table {
                     width: 100%;
                     border-collapse: separate;
                     border-spacing: 0;
@@ -57,7 +71,7 @@ class PyPACDemoApp:
                     overflow: hidden;
                     border: 1px solid rgba(255, 255, 255, 0.1);
                 }
-                .pypac-session-table th {
+                .pywac-session-table th {
                     background-color: rgba(45, 45, 68, 0.8);
                     color: #e0e0e0;
                     padding: 12px 15px;
@@ -66,12 +80,12 @@ class PyPACDemoApp:
                     font-size: 14px;
                     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
                 }
-                .pypac-quick-controls {
+                .pywac-quick-controls {
                     display: flex;
                     gap: 8px;
                     align-items: center;
                 }
-                .pypac-control-btn {
+                .pywac-control-btn {
                     background-color: rgba(255, 255, 255, 0.1);
                     border: 1px solid rgba(255, 255, 255, 0.2);
                     border-radius: 4px;
@@ -81,48 +95,48 @@ class PyPACDemoApp:
                     font-size: 12px;
                     transition: all 0.2s;
                 }
-                .pypac-control-btn:hover {
+                .pywac-control-btn:hover {
                     background-color: rgba(76, 175, 80, 0.3);
                     border-color: #4caf50;
                 }
-                .pypac-session-table td {
+                .pywac-session-table td {
                     padding: 10px 15px;
                     color: #ffffff;
                     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
                     background-color: rgba(30, 30, 46, 0.3);
                 }
-                .pypac-session-table tr:hover td {
+                .pywac-session-table tr:hover td {
                     background-color: rgba(76, 175, 80, 0.1);
                 }
-                .pypac-active-row td {
+                .pywac-active-row td {
                     background-color: rgba(76, 175, 80, 0.15);
                 }
-                .pypac-volume-bar {
+                .pywac-volume-bar {
                     display: flex;
                     align-items: center;
                     gap: 10px;
                 }
-                .pypac-volume-bg {
+                .pywac-volume-bg {
                     width: 120px;
                     height: 8px;
                     background-color: rgba(255, 255, 255, 0.1);
                     border-radius: 4px;
                     overflow: hidden;
                 }
-                .pypac-volume-fill {
+                .pywac-volume-fill {
                     height: 100%;
                     background: linear-gradient(90deg, #4caf50, #66bb6a);
                     transition: width 0.3s ease;
                 }
-                .pypac-status-icon {
+                .pywac-status-icon {
                     font-size: 18px;
                 }
-                .pypac-process-name {
+                .pywac-process-name {
                     font-weight: 500;
                     color: #ffffff;
                 }
             </style>
-            <table class='pypac-session-table'>
+            <table class='pywac-session-table'>
                 <thead>
                     <tr>
                         <th style='width: 60px; text-align: center;'>状態</th>
@@ -139,7 +153,7 @@ class PyPACDemoApp:
                 # 状態アイコン
                 if session.get('is_active', False):
                     status_icon = "🔊"
-                    row_class = "pypac-active-row"
+                    row_class = "pywac-active-row"
                 else:
                     status_icon = "⏸️"
                     row_class = ""
@@ -164,9 +178,9 @@ class PyPACDemoApp:
                 
                 # 音量バー
                 volume_bar = f"""
-                <div class='pypac-volume-bar'>
-                    <div class='pypac-volume-bg'>
-                        <div class='pypac-volume-fill' style='width: {volume:.0f}%;'></div>
+                <div class='pywac-volume-bar'>
+                    <div class='pywac-volume-bg'>
+                        <div class='pywac-volume-fill' style='width: {volume:.0f}%;'></div>
                     </div>
                     <span style='color: #e0e0e0; font-size: 14px;'>{volume:.0f}%</span>
                 </div>
@@ -174,11 +188,11 @@ class PyPACDemoApp:
                 
                 html += f"""
                 <tr class='{row_class}'>
-                    <td style='text-align: center;'><span class='pypac-status-icon'>{status_icon}</span></td>
-                    <td><span class='pypac-process-name'>{process_name}</span></td>
+                    <td style='text-align: center;'><span class='pywac-status-icon'>{status_icon}</span></td>
+                    <td><span class='pywac-process-name'>{process_name}</span></td>
                     <td style='color: #e0e0e0;'>{session.get('process_id', 'N/A')}</td>
                     <td>{volume_bar}</td>
-                    <td style='text-align: center;'><span class='pypac-status-icon'>{mute_status}</span></td>
+                    <td style='text-align: center;'><span class='pywac-status-icon'>{mute_status}</span></td>
                 </tr>
                 """
             
@@ -194,8 +208,8 @@ class PyPACDemoApp:
     def get_session_stats(self) -> str:
         """セッション統計情報を表示"""
         try:
-            sessions = pypac.list_audio_sessions()
-            active_sessions = pypac.get_active_sessions()
+            sessions = pywac.list_audio_sessions()
+            active_sessions = pywac.get_active_sessions()
             
             total = len(sessions)
             active = len(active_sessions)
@@ -245,7 +259,7 @@ class PyPACDemoApp:
     def get_audio_sessions(self) -> List[str]:
         """利用可能な音声セッションのリストを取得"""
         try:
-            sessions = pypac.list_audio_sessions()
+            sessions = pywac.list_audio_sessions()
             if not sessions:
                 return ["音声セッションが見つかりません"]
             
@@ -270,7 +284,7 @@ class PyPACDemoApp:
         
         try:
             app_name = session_name.split(" (PID:")[0]
-            session = pypac.find_audio_session(app_name)
+            session = pywac.find_audio_session(app_name)
             
             if session:
                 # 状態アイコンと色
@@ -346,7 +360,7 @@ class PyPACDemoApp:
     def get_active_sessions(self) -> str:
         """アクティブなセッション一覧を取得"""
         try:
-            active_sessions = pypac.get_active_sessions()
+            active_sessions = pywac.get_active_sessions()
             if not active_sessions:
                 return "アクティブなセッションがありません"
             
@@ -360,7 +374,7 @@ class PyPACDemoApp:
     def get_recordable_processes(self) -> List[str]:
         """録音可能なプロセス一覧を取得"""
         try:
-            processes = pypac.list_recordable_processes()
+            processes = pywac.list_recordable_processes()
             if not processes:
                 return ["録音可能なプロセスが見つかりません"]
             
@@ -403,10 +417,10 @@ class PyPACDemoApp:
     def _record_system_audio(self, filename: str, duration: int):
         """システム音声を録音（バックグラウンド）"""
         try:
-            audio_data = pypac.record_audio(duration)
+            audio_data = pywac.record_audio(duration)
             if audio_data is not None and len(audio_data) > 0:
                 # Fix argument order: audio_data first, then filename
-                pypac.save_to_wav(audio_data, filename, 48000)
+                pywac.save_to_wav(audio_data, filename, 48000)
                 # Convert to numpy array and then to int16
                 audio_array = np.array(audio_data, dtype=np.float32)
                 self.audio_buffer = (audio_array * 32767).astype(np.int16)
@@ -457,9 +471,9 @@ class PyPACDemoApp:
         try:
             # PIDで録音を試みる
             if pid > 0:
-                success = pypac.record_process_id(pid, filename, duration)
+                success = pywac.record_process_id(pid, filename, duration)
             else:
-                success = pypac.record_process(process_name, filename, duration)
+                success = pywac.record_process(process_name, filename, duration)
             
             if success:
                 self.recording_status = f"プロセス録音成功: {process_name}"
@@ -544,7 +558,7 @@ class PyPACDemoApp:
         """コールバック付き録音（バックグラウンド）"""
         try:
             # コールバック録音実行（APIの正しい呼び出し方）
-            pypac.record_with_callback(duration, self._audio_callback)
+            pywac.record_with_callback(duration, self._audio_callback)
             
             # コールバック完了まで待機
             time.sleep(duration + 0.5)
@@ -552,7 +566,7 @@ class PyPACDemoApp:
             # 録音データが取得できたか確認
             if self.audio_buffer is not None and len(self.audio_buffer) > 0:
                 # WAVファイルに保存
-                pypac.save_to_wav(self.audio_buffer, filename, 48000)
+                pywac.save_to_wav(self.audio_buffer, filename, 48000)
                 self.recording_status = f"コールバック録音成功: {filename}"
                 self.recording_filename = filename
                 
@@ -651,7 +665,7 @@ class PyPACDemoApp:
         
         try:
             app_name = target_app.split(" (PID:")[0]
-            pypac.set_app_volume(app_name, volume / 100.0)
+            pywac.set_app_volume(app_name, volume / 100.0)
             return f"{app_name}の音量を{volume}%に設定しました"
         except Exception as e:
             return f"音量設定エラー: {str(e)}"
@@ -663,7 +677,7 @@ class PyPACDemoApp:
         
         try:
             app_name = target_app.split(" (PID:")[0]
-            volume = pypac.get_app_volume(app_name)
+            volume = pywac.get_app_volume(app_name)
             return f"{app_name}の現在の音量: {volume * 100:.1f}%"
         except Exception as e:
             return f"音量取得エラー: {str(e)}"
@@ -675,7 +689,7 @@ class PyPACDemoApp:
         
         try:
             app_name = target_app.split(" (PID:")[0]
-            new_volume = pypac.adjust_volume(app_name, delta / 100.0)
+            new_volume = pywac.adjust_volume(app_name, delta / 100.0)
             return f"{app_name}の音量を調整しました: {new_volume * 100:.1f}%"
         except Exception as e:
             return f"音量調整エラー: {str(e)}"
@@ -687,7 +701,7 @@ class PyPACDemoApp:
         
         try:
             app_name = target_app.split(" (PID:")[0]
-            pypac.mute_app(app_name)
+            pywac.mute_app(app_name)
             return f"{app_name}をミュートしました"
         except Exception as e:
             return f"ミュートエラー: {str(e)}"
@@ -699,7 +713,7 @@ class PyPACDemoApp:
         
         try:
             app_name = target_app.split(" (PID:")[0]
-            pypac.unmute_app(app_name)
+            pywac.unmute_app(app_name)
             return f"{app_name}のミュートを解除しました"
         except Exception as e:
             return f"ミュート解除エラー: {str(e)}"
@@ -721,12 +735,12 @@ class PyPACDemoApp:
             return [f"エラー: {str(e)}"]
 
 # アプリケーションインスタンス
-app = PyPACDemoApp()
+app = PyWACDemoApp()
 
 # Gradioインターフェースの作成
-with gr.Blocks(title="PyPAC完全機能デモ", theme=gr.themes.Soft(primary_hue="green", neutral_hue="slate")) as demo:
+with gr.Blocks(title="PyWAC完全機能デモ", theme=gr.themes.Soft(primary_hue="green", neutral_hue="slate")) as demo:
     gr.Markdown("""
-    # 🎙️ PyPAC 完全機能デモ（日本語版）
+    # 🎙️ PyWAC 完全機能デモ（日本語版）
     
     Python Process Audio Capture - すべての機能を試せる統合デモ
     """)
@@ -1037,7 +1051,7 @@ with gr.Blocks(title="PyPAC完全機能デモ", theme=gr.themes.Soft(primary_hue
     # ===== ヘルプタブ =====
     with gr.Tab("ヘルプ"):
         gr.Markdown("""
-        ## 📖 PyPAC 完全機能ガイド
+        ## 📖 PyWAC 完全機能ガイド
         
         ### 🎯 主要機能
         
@@ -1154,7 +1168,7 @@ with gr.Blocks(title="PyPAC完全機能デモ", theme=gr.themes.Soft(primary_hue
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = str(app.recordings_dir / f"loopback_test_{timestamp}.wav")
             
-            success = pypac.record_process(process_name, filename, duration)
+            success = pywac.record_process(process_name, filename, duration)
             
             if success and os.path.exists(filename):
                 with wave.open(filename, 'rb') as wf:
@@ -1186,7 +1200,7 @@ with gr.Blocks(title="PyPAC完全機能デモ", theme=gr.themes.Soft(primary_hue
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = str(app.recordings_dir / f"pid_test_{timestamp}.wav")
             
-            success = pypac.record_process_id(pid, filename, duration)
+            success = pywac.record_process_id(pid, filename, duration)
             
             if success and os.path.exists(filename):
                 with wave.open(filename, 'rb') as wf:
@@ -1460,7 +1474,7 @@ with gr.Blocks(title="PyPAC完全機能デモ", theme=gr.themes.Soft(primary_hue
                 filename = "direct_recording.wav"
             
             filepath = str(app.recordings_dir / filename)
-            success = pypac.record_to_file(filepath, duration)
+            success = pywac.record_to_file(filepath, duration)
             
             if success and os.path.exists(filepath):
                 size = os.path.getsize(filepath) / 1024
@@ -1473,7 +1487,7 @@ with gr.Blocks(title="PyPAC完全機能デモ", theme=gr.themes.Soft(primary_hue
     def test_session_manager():
         """SessionManager クラスの直接使用"""
         try:
-            from pypac import SessionManager
+            from pywac import SessionManager
             
             manager = SessionManager()
             sessions = manager.list_sessions()
@@ -1496,7 +1510,7 @@ with gr.Blocks(title="PyPAC完全機能デモ", theme=gr.themes.Soft(primary_hue
     def test_audio_recorder():
         """AudioRecorder クラスの直接使用"""
         try:
-            from pypac import AudioRecorder
+            from pywac import AudioRecorder
             
             recorder = AudioRecorder()
             output = "AudioRecorder インスタンス作成成功\n"
@@ -1519,11 +1533,11 @@ with gr.Blocks(title="PyPAC完全機能デモ", theme=gr.themes.Soft(primary_hue
             output = "非推奨API のテスト:\n\n"
             
             # find_app (deprecated)
-            result = pypac.find_app("firefox")
+            result = pywac.find_app("firefox")
             output += f"find_app('firefox'): {'Found' if result else 'Not found'}\n"
             
             # get_active_apps (deprecated)
-            apps = pypac.get_active_apps()
+            apps = pywac.get_active_apps()
             output += f"get_active_apps(): {len(apps)} アプリ検出"
             
             return output
@@ -1536,7 +1550,7 @@ with gr.Blocks(title="PyPAC完全機能デモ", theme=gr.themes.Soft(primary_hue
             return "ファイルを選択してください"
         
         try:
-            audio_data, sample_rate, channels = pypac.utils.load_wav(file.name)
+            audio_data, sample_rate, channels = pywac.utils.load_wav(file.name)
             
             output = f"load_wav() 成功:\n"
             output += f"サンプル数: {len(audio_data)}\n"
@@ -1558,7 +1572,7 @@ with gr.Blocks(title="PyPAC完全機能デモ", theme=gr.themes.Soft(primary_hue
                 import numpy as np
                 app.loaded_audio_data = np.sin(np.linspace(0, 2*np.pi, 48000)).tolist()
             
-            rms = pypac.utils.calculate_rms(app.loaded_audio_data)
+            rms = pywac.utils.calculate_rms(app.loaded_audio_data)
             return f"calculate_rms() 結果:\nRMS値: {rms:.6f}"
         except Exception as e:
             return f"エラー: {str(e)}"
@@ -1571,7 +1585,7 @@ with gr.Blocks(title="PyPAC完全機能デモ", theme=gr.themes.Soft(primary_hue
                 import numpy as np
                 app.loaded_audio_data = (np.sin(np.linspace(0, 2*np.pi, 48000)) * 0.5).tolist()
             
-            db = pypac.utils.calculate_db(app.loaded_audio_data)
+            db = pywac.utils.calculate_db(app.loaded_audio_data)
             return f"calculate_db() 結果:\n音量レベル: {db:.1f} dB"
         except Exception as e:
             return f"エラー: {str(e)}"
@@ -1585,7 +1599,7 @@ with gr.Blocks(title="PyPAC完全機能デモ", theme=gr.themes.Soft(primary_hue
                 app.loaded_audio_data = (np.sin(np.linspace(0, 2*np.pi, 48000)) * 0.3).tolist()
             
             original_max = max(abs(min(app.loaded_audio_data)), max(app.loaded_audio_data))
-            normalized = pypac.utils.normalize_audio(app.loaded_audio_data, 0.9)
+            normalized = pywac.utils.normalize_audio(app.loaded_audio_data, 0.9)
             new_max = max(abs(min(normalized)), max(normalized))
             
             output = f"normalize_audio() 結果:\n"
@@ -1602,7 +1616,7 @@ with gr.Blocks(title="PyPAC完全機能デモ", theme=gr.themes.Soft(primary_hue
         try:
             # デモ用のfloat32データ
             float_data = [0.0, 0.5, 1.0, -0.5, -1.0]
-            int_data = pypac.utils.convert_float32_to_int16(float_data)
+            int_data = pywac.utils.convert_float32_to_int16(float_data)
             
             output = "convert_float32_to_int16() デモ:\n\n"
             output += "Float32 → Int16:\n"
@@ -1668,6 +1682,6 @@ with gr.Blocks(title="PyPAC完全機能デモ", theme=gr.themes.Soft(primary_hue
     ])
 
 if __name__ == "__main__":
-    print("PyPAC 完全機能デモアプリケーションを起動中...")
+    print("PyWAC 完全機能デモアプリケーションを起動中...")
     print("ブラウザで http://localhost:7860 を開いてください")
     demo.launch(share=False, inbrowser=True)

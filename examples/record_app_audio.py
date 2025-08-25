@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 """
-PyPAC App Audio Recorder - Record audio from a specific application using package API
+PyWAC App Audio Recorder - Record audio from a specific application using package API
 Usage: python record_app_audio.py [app_name] [duration] [output_file]
 Example: python record_app_audio.py firefox 5 firefox_audio.wav
 """
 
-import pypac
+import pywac
 import sys
 import os
 import time
@@ -14,7 +14,7 @@ from datetime import datetime
 
 def find_app_session(app_name):
     """Find audio session for specified application using package API"""
-    sessions = pypac.list_audio_sessions()
+    sessions = pywac.list_audio_sessions()
     
     # Search for matching process name (case-insensitive)
     app_name_lower = app_name.lower()
@@ -30,7 +30,7 @@ def record_system_audio(duration_seconds=5, output_file="recording.wav"):
     print(f"[RECORDING] Capturing system audio for {duration_seconds} seconds...")
     
     # Use the high-level API to record directly to file
-    success = pypac.record_to_file(output_file, duration_seconds)
+    success = pywac.record_to_file(output_file, duration_seconds)
     
     if not success:
         print("[ERROR] Failed to record audio")
@@ -51,7 +51,7 @@ def record_system_audio(duration_seconds=5, output_file="recording.wav"):
 def record_with_progress(duration_seconds=5, output_file="recording.wav"):
     """Record audio with progress display using AudioRecorder class"""
     
-    recorder = pypac.AudioRecorder()
+    recorder = pywac.AudioRecorder()
     
     print(f"[RECORDING] Capturing system audio for {duration_seconds} seconds...")
     
@@ -104,7 +104,7 @@ def select_process_interactive():
     """Let user select a process interactively from available processes"""
     try:
         # Get recordable processes
-        processes = pypac.list_recordable_processes()
+        processes = pywac.list_recordable_processes()
         
         if not processes:
             print("[WARNING] No recordable processes found")
@@ -116,7 +116,7 @@ def select_process_interactive():
         
         for i, proc in enumerate(processes, 1):
             # Check if process is active
-            sessions = pypac.list_audio_sessions()
+            sessions = pywac.list_audio_sessions()
             is_active = any(s['process_id'] == proc['pid'] and s['is_active'] for s in sessions)
             status = "[ACTIVE]" if is_active else "[INACTIVE]"
             print(f"  {i}. {proc['name']} (PID: {proc['pid']}) {status}")
@@ -149,7 +149,7 @@ def select_process_interactive():
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Record audio from a specific application or system using PyPAC',
+        description='Record audio from a specific application or system using PyWAC',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -179,12 +179,12 @@ Examples:
     args = parser.parse_args()
     
     # Print version
-    print(f"PyPAC Audio Recorder v{pypac.__version__}")
+    print(f"PyWAC Audio Recorder v{pywac.__version__}")
     print("=" * 60)
     
     # List sessions mode
     if args.list:
-        sessions = pypac.list_audio_sessions()
+        sessions = pywac.list_audio_sessions()
         
         print("[AUDIO SESSIONS]")
         active_count = 0
@@ -197,7 +197,7 @@ Examples:
                 active_count += 1
         
         # Show active sessions summary
-        active_sessions = pypac.get_active_sessions()
+        active_sessions = pywac.get_active_sessions()
         if active_sessions:
             print(f"\n{len(active_sessions)} active session(s): {', '.join(active_sessions)}")
         else:
@@ -264,7 +264,7 @@ Examples:
             else:
                 # Try process-specific recording
                 print("[INFO] Attempting process-specific recording...")
-                success = pypac.record_process(args.app_name, output_file, args.duration)
+                success = pywac.record_process(args.app_name, output_file, args.duration)
                 if success:
                     print(f"[SUCCESS] Process-specific audio saved to {output_file}")
                     return 0
@@ -274,7 +274,7 @@ Examples:
             print(f"[WARNING] Application '{args.app_name}' not found")
             
             # Show available sessions
-            active_sessions = pypac.get_active_sessions()
+            active_sessions = pywac.get_active_sessions()
             if active_sessions:
                 print("          Available sessions:")
                 for session in active_sessions:
@@ -304,7 +304,7 @@ if __name__ == "__main__":
         sys.exit(main())
     except ImportError as e:
         print("=" * 60)
-        print("ERROR: Failed to import pypac module")
+        print("ERROR: Failed to import pywac module")
         print("=" * 60)
         print(f"Details: {e}")
         print("\nPlease install the package:")

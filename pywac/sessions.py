@@ -1,10 +1,10 @@
 """
-Audio session management module for PyPAC.
+Audio session management module for PyWAC.
 """
 
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
-import pypac._native as _native  # Will be the compiled extension
+import pywac._native as _native  # Will be the compiled extension
 
 
 @dataclass

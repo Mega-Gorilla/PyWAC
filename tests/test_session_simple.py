@@ -1,15 +1,15 @@
 """Simple test for audio session module"""
 
 def main():
-    print("Testing pypac module...")
+    print("Testing pywac module...")
     
     try:
-        import pypac
+        import pywac
         print("[OK] Module imported")
         
         # Test SimpleLoopback
         print("\n[Testing SimpleLoopback]")
-        loopback = pypac.SimpleLoopback()
+        loopback = pywac.SimpleLoopback()
         print("[OK] SimpleLoopback instance created")
         
         success = loopback.start()
@@ -29,7 +29,7 @@ def main():
         
         # Test SessionEnumerator
         print("\n[Testing SessionEnumerator]")
-        enumerator = pypac.SessionEnumerator()
+        enumerator = pywac.SessionEnumerator()
         print("[OK] SessionEnumerator instance created")
         
         sessions = enumerator.enumerate_sessions()

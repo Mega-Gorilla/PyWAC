@@ -1,11 +1,11 @@
-# PyPAC - Python Process Audio Capture for Windows
+# PyWAC - Python Process Audio Capture for Windows
 
 <div align="center">
 
 [![Python](https://img.shields.io/badge/Python-3.7+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![Windows](https://img.shields.io/badge/Windows-10%2F11-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://www.microsoft.com/windows)
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-0.2.0-blue?style=for-the-badge)](https://github.com/yourusername/pypac)
+[![Version](https://img.shields.io/badge/Version-0.2.0-blue?style=for-the-badge)](https://github.com/Mega-Gorilla/pywac)
 
 **The Simplest Audio Control Library for Windows**
 
@@ -18,19 +18,19 @@
 ## Quick Start in 3 Seconds
 
 ```python
-import pypac
+import pywac
 
 # Record audio with just one line
-pypac.record_to_file("output.wav", duration=5)
+pywac.record_to_file("output.wav", duration=5)
 
 # Record specific app audio only (exclude Discord voice!)
-pypac.record_process("game.exe", "game_only.wav", duration=10)
+pywac.record_process("game.exe", "game_only.wav", duration=10)
 
 # Adjust app volume
-pypac.set_app_volume("spotify", 0.5)
+pywac.set_app_volume("spotify", 0.5)
 
 # Check running audio sessions
-apps = pypac.get_active_sessions()
+apps = pywac.get_active_sessions()
 print(f"Playing audio: {', '.join(apps)}")
 # Output: Playing audio: Spotify.exe, Chrome.exe, Discord.exe
 ```
@@ -41,7 +41,7 @@ print(f"Playing audio: {', '.join(apps)}")
 
 ## Contents
 
-- [Why PyPAC?](#why-pypac)
+- [Why PyWAC?](#why-pywac)
 - [Key Features](#key-features)
 - [Installation](#installation)
 - [Usage](#usage)
@@ -55,7 +55,7 @@ print(f"Playing audio: {', '.join(apps)}")
 
 ---
 
-## Why PyPAC?
+## Why PyWAC?
 
 ### Problems with Existing Libraries
 
@@ -66,9 +66,9 @@ print(f"Playing audio: {', '.join(apps)}")
 | PyAudioWPatch | System-wide audio only |
 | OBS win-capture-audio | GUI app only, no Python support |
 
-### PyPAC's Solution
+### PyWAC's Solution
 
-| Feature | PyPAC | Other Libraries |
+| Feature | PyWAC | Other Libraries |
 |---------|-------|-----------------|
 | Per-process volume control | ✅ | ❌ |
 | **Per-app audio recording** | ✅ | ❌ |
@@ -107,8 +107,8 @@ For detailed technical specifications, see the [Technical Investigation Report](
 
 ```bash
 # Development version (current installation method)
-git clone https://github.com/yourusername/pypac.git
-cd pypac
+git clone https://github.com/Mega-Gorilla/pywac.git
+cd pywac
 pip install -e .
 ```
 
@@ -144,31 +144,31 @@ python setup.py build_ext --inplace
 ### High-Level API (Simple Functions)
 
 ```python
-import pypac
+import pywac
 
 # System-wide audio recording
-pypac.record_to_file("output.wav", duration=5)
+pywac.record_to_file("output.wav", duration=5)
 
 # Process-specific recording (by name)
-pypac.record_process("spotify", "spotify_only.wav", duration=10)
+pywac.record_process("spotify", "spotify_only.wav", duration=10)
 
 # Process-specific recording (by PID)
-pypac.record_process_id(51716, "spotify_by_pid.wav", duration=10)
+pywac.record_process_id(51716, "spotify_by_pid.wav", duration=10)
 
 # Get active audio sessions
-apps = pypac.get_active_sessions()
+apps = pywac.get_active_sessions()
 print(f"Active sessions: {apps}")
 
 # Application volume control
-pypac.set_app_volume("spotify", 0.5)  # 50%
+pywac.set_app_volume("spotify", 0.5)  # 50%
 
 # Session information retrieval
-firefox = pypac.find_app("firefox")
+firefox = pywac.find_app("firefox")
 if firefox:
     print(f"Firefox volume: {firefox['volume_percent']}%")
 
 # Enumerate all audio sessions
-sessions = pypac.list_audio_sessions()
+sessions = pywac.list_audio_sessions()
 for s in sessions:
     print(f"{s['process_name']}: {s['volume_percent']}%")
 ```
@@ -176,10 +176,10 @@ for s in sessions:
 ### Class-Based API (Detailed Control)
 
 ```python
-import pypac
+import pywac
 
 # Session management via SessionManager
-manager = pypac.SessionManager()
+manager = pywac.SessionManager()
 
 # Enumerate active sessions
 active = manager.get_active_sessions()
@@ -195,7 +195,7 @@ if discord:
     manager.mute_session("discord", True)
 
 # Detailed recording control via AudioRecorder
-recorder = pypac.AudioRecorder()
+recorder = pywac.AudioRecorder()
 recorder.start(duration=10)
 
 while recorder.is_recording:
@@ -205,7 +205,7 @@ while recorder.is_recording:
 
 audio_data = recorder.stop()
 if len(audio_data) > 0:
-    pypac.utils.save_to_wav(audio_data, "output.wav")
+    pywac.utils.save_to_wav(audio_data, "output.wav")
     print(f"Saved: {len(audio_data)} samples")
 ```
 
@@ -215,7 +215,7 @@ if len(audio_data) > 0:
 <summary>Show details</summary>
 
 ```python
-import pypac._native as native
+import pywac._native as native
 import numpy as np
 
 # Direct session control via SessionEnumerator
@@ -254,13 +254,13 @@ if loopback.start():
 ### 🎯 Process-Specific Recording (Key Feature!)
 
 ```python
-import pypac
+import pywac
 import process_loopback_v2 as loopback
 
 # Method 1: High-level API (working!)
 def record_specific_app(app_name, output_file, duration=10):
     """Record audio from specific app only"""
-    success = pypac.record_process(app_name, output_file, duration)
+    success = pywac.record_process(app_name, output_file, duration)
     if success:
         print(f"✅ {app_name} audio recorded successfully!")
     else:
@@ -291,7 +291,7 @@ def record_with_process_loopback():
         # Save to WAV file (save numpy array directly)
         import numpy as np
         audio_array = np.array(audio_data, dtype=np.float32)
-        pypac.utils.save_to_wav(audio_array, "spotify_only.wav", sample_rate=48000)
+        pywac.utils.save_to_wav(audio_array, "spotify_only.wav", sample_rate=48000)
         print("✅ Spotify audio saved successfully!")
 
 # Example: Record game audio only (no Discord voice)
@@ -304,32 +304,32 @@ record_specific_app("firefox", "browser_audio.wav", 15)
 ### Game Streaming Audio Mixer
 
 ```python
-import pypac
+import pywac
 import time
 
 class StreamAudioMixer:
     """Audio balance adjustment for streaming"""
     
     def __init__(self):
-        self.manager = pypac.SessionManager()
+        self.manager = pywac.SessionManager()
     
     def setup_streaming(self):
         """Setup audio for streaming"""
         # Game audio at 70%
-        pypac.set_app_volume("game", 0.7)
+        pywac.set_app_volume("game", 0.7)
         
         # Discord at 30%
-        pypac.set_app_volume("discord", 0.3)
+        pywac.set_app_volume("discord", 0.3)
         
         # Mute Spotify
-        pypac.mute_app("spotify")
+        pywac.mute_app("spotify")
         
         print("Streaming audio setup complete!")
     
     def save_game_audio_only(self, game_name="game.exe", duration=60):
         """Record game audio only (exclude Discord voice)"""
         # Process Loopback API records game audio only!
-        pypac.record_process(game_name, f"game_only_{time.time()}.wav", duration)
+        pywac.record_process(game_name, f"game_only_{time.time()}.wav", duration)
         print("Game audio recorded successfully (no Discord voice!)")
 
 # Usage
@@ -341,12 +341,12 @@ mixer.save_game_audio_only()
 ### Real-time Audio Meter
 
 ```python
-import pypac
+import pywac
 import time
 
 def audio_meter(duration=30):
     """Visual audio meter"""
-    recorder = pypac.AudioRecorder()
+    recorder = pywac.AudioRecorder()
     recorder.start(duration=duration)
     
     print("Audio Level Meter")
@@ -356,8 +356,8 @@ def audio_meter(duration=30):
         buffer = recorder.get_buffer()
         if len(buffer) > 0:
             # Calculate RMS
-            rms = pypac.utils.calculate_rms(buffer)
-            db = pypac.utils.calculate_db(buffer)
+            rms = pywac.utils.calculate_rms(buffer)
+            db = pywac.utils.calculate_db(buffer)
             
             # Visualize
             bar_length = int(rms * 50)
@@ -384,39 +384,39 @@ audio_meter(10)
 
 | Function | Description | Example |
 |----------|-------------|---------|
-| `record_to_file(filename, duration)` | Record audio to file | `pypac.record_to_file("out.wav", 5)` |
-| `record_process(app, filename, duration)` | Record specific app audio | `pypac.record_process("spotify", "spotify.wav", 10)` |
-| `record_process_id(pid, filename, duration)` | Record by process ID | `pypac.record_process_id(1234, "app.wav", 10)` |
+| `record_to_file(filename, duration)` | Record audio to file | `pywac.record_to_file("out.wav", 5)` |
+| `record_process(app, filename, duration)` | Record specific app audio | `pywac.record_process("spotify", "spotify.wav", 10)` |
+| `record_process_id(pid, filename, duration)` | Record by process ID | `pywac.record_process_id(1234, "app.wav", 10)` |
 | `record_with_callback(duration, callback)` | Record with callback | See callback recording example |
-| `list_audio_sessions()` | Get all audio sessions | `sessions = pypac.list_audio_sessions()` |
-| `get_active_sessions()` | List active app names | `apps = pypac.get_active_sessions()` |
-| `set_app_volume(app, volume)` | Set app volume (0.0-1.0) | `pypac.set_app_volume("chrome", 0.5)` |
-| `mute_app(app)` | Mute app | `pypac.mute_app("spotify")` |
-| `find_app(app)` | Get app info | `info = pypac.find_app("firefox")` |
+| `list_audio_sessions()` | Get all audio sessions | `sessions = pywac.list_audio_sessions()` |
+| `get_active_sessions()` | List active app names | `apps = pywac.get_active_sessions()` |
+| `set_app_volume(app, volume)` | Set app volume (0.0-1.0) | `pywac.set_app_volume("chrome", 0.5)` |
+| `mute_app(app)` | Mute app | `pywac.mute_app("spotify")` |
+| `find_app(app)` | Get app info | `info = pywac.find_app("firefox")` |
 
 #### Session Management Functions
 
 | Function | Description | Example |
 |----------|-------------|---------|  
-| `get_active_sessions()` | List active audio session names | `sessions = pypac.get_active_sessions()` |
-| `list_audio_sessions()` | Get detailed session information | `sessions = pypac.list_audio_sessions()` |
-| `find_app(app_name)` | Find session by name | `session = pypac.find_app("spotify")` |
-| `set_app_volume(app, volume)` | Set app volume (0.0-1.0) | `pypac.set_app_volume("chrome", 0.5)` |
-| `mute_app(app_name)` | Mute application | `pypac.mute_app("discord")` |
-| `unmute_app(app_name)` | Unmute application | `pypac.unmute_app("discord")` |
+| `get_active_sessions()` | List active audio session names | `sessions = pywac.get_active_sessions()` |
+| `list_audio_sessions()` | Get detailed session information | `sessions = pywac.list_audio_sessions()` |
+| `find_app(app_name)` | Find session by name | `session = pywac.find_app("spotify")` |
+| `set_app_volume(app, volume)` | Set app volume (0.0-1.0) | `pywac.set_app_volume("chrome", 0.5)` |
+| `mute_app(app_name)` | Mute application | `pywac.mute_app("discord")` |
+| `unmute_app(app_name)` | Unmute application | `pywac.unmute_app("discord")` |
 
 #### Utility Functions
 
 | Function | Description | Example |
 |----------|-------------|---------|  
-| `save_to_wav(data, filename, sample_rate)` | Save audio to WAV | `pypac.save_to_wav(audio_data, "out.wav")` |
-| `calculate_rms(audio_buffer)` | Calculate RMS value | `rms = pypac.calculate_rms(buffer)` |
-| `calculate_db(audio_buffer)` | Calculate dB level | `db = pypac.calculate_db(buffer)` |
+| `save_to_wav(data, filename, sample_rate)` | Save audio to WAV | `pywac.save_to_wav(audio_data, "out.wav")` |
+| `calculate_rms(audio_buffer)` | Calculate RMS value | `rms = pywac.calculate_rms(buffer)` |
+| `calculate_db(audio_buffer)` | Calculate dB level | `db = pywac.calculate_db(buffer)` |
 
 ### Callback Recording
 
 ```python
-import pypac
+import pywac
 
 def audio_callback(audio_data):
     """Called when recording completes"""
@@ -424,16 +424,16 @@ def audio_callback(audio_data):
         print(f"Recorded {len(audio_data)} samples")
         
         # Process audio
-        rms = pypac.calculate_rms(audio_data)
-        db = pypac.calculate_db(audio_data)
+        rms = pywac.calculate_rms(audio_data)
+        db = pywac.calculate_db(audio_data)
         print(f"Audio level: {db:.1f} dB")
         
         # Save to file
-        pypac.save_to_wav(audio_data, "callback_recording.wav")
+        pywac.save_to_wav(audio_data, "callback_recording.wav")
         print("Audio saved!")
 
 # Record with callback
-pypac.record_with_callback(duration=5, callback=audio_callback)
+pywac.record_with_callback(duration=5, callback=audio_callback)
 print("Recording in progress...")
 ```
 
@@ -443,7 +443,7 @@ print("Recording in progress...")
 
 ### Gradio Demo Application
 
-PyPAC includes a comprehensive interactive demo built with Gradio that showcases all features:
+PyWAC includes a comprehensive interactive demo built with Gradio that showcases all features:
 
 ```bash
 # Run the demo
@@ -464,7 +464,7 @@ The demo includes:
 ### Common Issues
 
 <details>
-<summary>ImportError: No module named 'pypac'</summary>
+<summary>ImportError: No module named 'pywac'</summary>
 
 **Solution:**
 ```bash
@@ -522,8 +522,8 @@ python setup.py build_ext --inplace
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/pypac.git
-cd pypac
+git clone https://github.com/Mega-Gorilla/pywac.git
+cd pywac
 
 # Setup development environment
 python -m venv .venv
@@ -534,16 +534,16 @@ pip install -e .[dev]
 pytest tests/
 
 # Code quality checks
-black pypac/
-pylint pypac/
-mypy pypac/
+black pywac/
+pylint pywac/
+mypy pywac/
 ```
 
 ### Architecture
 
 ```
-pypac/
-├── pypac/              # Python package
+pywac/
+├── pywac/              # Python package
 │   ├── __init__.py    # Package entry
 │   ├── api.py         # High-level API
 │   ├── sessions.py    # Session management

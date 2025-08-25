@@ -1,12 +1,12 @@
 """
-Audio recording module for PyPAC.
+Audio recording module for PyWAC.
 """
 
 import time
 import threading
 from typing import Optional, List, Tuple
 from datetime import datetime
-import pypac._native as _native  # Will be the compiled extension
+import pywac._native as _native  # Will be the compiled extension
 from .utils import save_to_wav
 
 

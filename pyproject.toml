@@ -7,16 +7,16 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pypac"
+name = "pywac"
 version = "0.2.0"
-description = "Python Process Audio Capture for Windows - High-level audio control library"
+description = "Python Windows Audio Capture (PyWAC) - Process-specific audio recording and control for Windows"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "PyPAC Contributors"},
+    {name = "PyWAC Contributors"},
 ]
 maintainers = [
-    {name = "PyPAC Contributors"},
+    {name = "PyWAC Contributors"},
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -66,24 +66,24 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/pypac"
-Documentation = "https://github.com/yourusername/pypac#readme"
-Repository = "https://github.com/yourusername/pypac.git"
-"Bug Reports" = "https://github.com/yourusername/pypac/issues"
-Changelog = "https://github.com/yourusername/pypac/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/Mega-Gorilla/pywac"
+Documentation = "https://github.com/Mega-Gorilla/pywac#readme"
+Repository = "https://github.com/Mega-Gorilla/pywac.git"
+"Bug Reports" = "https://github.com/Mega-Gorilla/pywac/issues"
+Changelog = "https://github.com/Mega-Gorilla/pywac/blob/main/CHANGELOG.md"
 
 [project.scripts]
-pypac-record = "pypac.cli:record_command"
-pypac-list = "pypac.cli:list_command"
-pypac-volume = "pypac.cli:volume_command"
+pywac-record = "pywac.cli:record_command"
+pywac-list = "pywac.cli:list_command"
+pywac-volume = "pywac.cli:volume_command"
 
 [tool.setuptools]
-packages = ["pypac", "pypac._native"]
+packages = ["pywac", "pywac._native"]
 include-package-data = true
 
 [tool.setuptools.package-data]
-pypac = ["py.typed"]
-"pypac._native" = ["*.pyd", "*.so"]
+pywac = ["py.typed"]
+"pywac._native" = ["*.pyd", "*.so"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

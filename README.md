@@ -1,11 +1,11 @@
-# 🎵 PyPAC - Python Process Audio Capture for Windows
+# 🎵 PyWAC - Python Process Audio Capture for Windows
 
 <div align="center">
 
 [![Python](https://img.shields.io/badge/Python-3.7+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![Windows](https://img.shields.io/badge/Windows-10%2F11-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://www.microsoft.com/windows)
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-0.2.0-blue?style=for-the-badge)](https://github.com/yourusername/pypac)
+[![Version](https://img.shields.io/badge/Version-0.2.0-blue?style=for-the-badge)](https://github.com/Mega-Gorilla/pywac)
 
 **Windows対応のシンプルなオーディオ制御ライブラリ**
 
@@ -15,22 +15,22 @@
 
 ---
 
-## 🚀 3秒でわかるPyPAC
+## 🚀 3秒でわかるPyWAC
 
 ```python
-import pypac
+import pywac
 
 # たった1行でオーディオ録音
-pypac.record_to_file("output.wav", duration=5)
+pywac.record_to_file("output.wav", duration=5)
 
 # 特定アプリの音声だけを録音（Discord音声を除外！）
-pypac.record_process("game.exe", "game_only.wav", duration=10)
+pywac.record_process("game.exe", "game_only.wav", duration=10)
 
 # アプリの音量を調整
-pypac.set_app_volume("spotify", 0.5)
+pywac.set_app_volume("spotify", 0.5)
 
 # アクティブなオーディオセッションを確認
-sessions = pypac.get_active_sessions()
+sessions = pywac.get_active_sessions()
 for s in sessions:
     print(f"{s['process_name']}: 音量{s['volume_percent']:.0f}%")
 # 出力例: Spotify.exe: 音量50%
@@ -42,7 +42,7 @@ for s in sessions:
 
 ## 📖 目次
 
-- [なぜPyPACが必要か？](#-なぜpypacが必要か)
+- [なぜPyWACが必要か？](#-なぜpywacが必要か)
 - [主な機能](#-主な機能)
 - [インストール](#-インストール)
 - [使い方](#-使い方)
@@ -56,7 +56,7 @@ for s in sessions:
 
 ---
 
-## 🤔 なぜPyPACが必要か？
+## 🤔 なぜPyWACが必要か？
 
 ### 既存ライブラリの問題点
 
@@ -67,9 +67,9 @@ for s in sessions:
 | PyAudioWPatch | システム全体の音声のみ |
 | OBS win-capture-audio | GUIアプリ専用、Python非対応 |
 
-### PyPACの解決策
+### PyWACの解決策
 
-| 機能 | PyPAC | 他のライブラリ |
+| 機能 | PyWAC | 他のライブラリ |
 |------|-------|--------------|
 | プロセス別音量制御 | ✅ | ❌ |
 | **アプリ単位の録音** | ✅ | ❌ |
@@ -108,8 +108,8 @@ Windows 10 2004 (Build 19041) 以降で利用可能な Process Loopback API を�
 
 ```bash
 # 開発版（現在のインストール方法）
-git clone https://github.com/yourusername/pypac.git
-cd pypac
+git clone https://github.com/Mega-Gorilla/pywac.git
+cd pywac
 pip install -e .
 ```
 
@@ -145,32 +145,32 @@ python setup.py build_ext --inplace
 ### 高レベル API (シンプル関数)
 
 ```python
-import pypac
+import pywac
 
 # システム全体のオーディオ録音
-pypac.record_to_file("output.wav", duration=5)
+pywac.record_to_file("output.wav", duration=5)
 
 # プロセス固有録音（プロセス名指定）
-pypac.record_process("spotify", "spotify_only.wav", duration=10)
+pywac.record_process("spotify", "spotify_only.wav", duration=10)
 
 # プロセス固有録音（PID指定）
-pypac.record_process_id(51716, "spotify_by_pid.wav", duration=10)
+pywac.record_process_id(51716, "spotify_by_pid.wav", duration=10)
 
 # アクティブオーディオセッション取得
-sessions = pypac.get_active_sessions()
+sessions = pywac.get_active_sessions()
 for s in sessions:
     print(f"{s['process_name']} (PID: {s['process_id']})")
 
 # アプリケーション音量制御
-pypac.set_app_volume("spotify", 0.5)  # 50%
+pywac.set_app_volume("spotify", 0.5)  # 50%
 
 # セッション情報取得
-firefox = pypac.find_audio_session("firefox")
+firefox = pywac.find_audio_session("firefox")
 if firefox:
     print(f"Firefox volume: {firefox['volume_percent']}%")
 
 # 全オーディオセッション列挙
-sessions = pypac.list_audio_sessions()
+sessions = pywac.list_audio_sessions()
 for s in sessions:
     print(f"{s['process_name']}: {s['volume_percent']}%")
 ```
@@ -178,10 +178,10 @@ for s in sessions:
 ### クラスベース API (詳細制御)
 
 ```python
-import pypac
+import pywac
 
 # SessionManager による セッション管理
-manager = pypac.SessionManager()
+manager = pywac.SessionManager()
 
 # アクティブセッション列挙
 active = manager.get_active_sessions()
@@ -197,7 +197,7 @@ if discord:
     manager.mute_session("discord", True)
 
 # AudioRecorder による詳細録音制御
-recorder = pypac.AudioRecorder()
+recorder = pywac.AudioRecorder()
 recorder.start(duration=10)
 
 while recorder.is_recording:
@@ -207,7 +207,7 @@ while recorder.is_recording:
 
 audio_data = recorder.stop()
 if len(audio_data) > 0:
-    pypac.utils.save_to_wav(audio_data, "output.wav")
+    pywac.utils.save_to_wav(audio_data, "output.wav")
     print(f"Saved: {len(audio_data)} samples")
 ```
 
@@ -217,7 +217,7 @@ if len(audio_data) > 0:
 <summary>詳細を表示</summary>
 
 ```python
-import pypac._native as native
+import pywac._native as native
 import numpy as np
 
 # SessionEnumerator による直接セッション制御
@@ -256,12 +256,12 @@ if loopback.start():
 ### 🎯 プロセス固有録音の使い方（目玉機能！）
 
 ```python
-import pypac
+import pywac
 
 # 方法1: 高レベルAPI（動作中！）
 def record_specific_app(app_name, output_file, duration=10):
     """特定アプリの音声のみを録音"""
-    success = pypac.record_process(app_name, output_file, duration)
+    success = pywac.record_process(app_name, output_file, duration)
     if success:
         print(f"✅ {app_name}の音声のみ録音完了！")
     else:
@@ -280,11 +280,11 @@ def record_with_callback_demo():
         print(f"平均音量: {db:.1f} dB")
         
         # WAVファイルに保存
-        pypac.save_to_wav(audio_data, "callback_recording.wav", 48000)
+        pywac.save_to_wav(audio_data, "callback_recording.wav", 48000)
         print("✅ 録音をcallback_recording.wavに保存！")
     
     # 5秒間録音（非同期）
-    pypac.record_with_callback(5, on_recording_complete)
+    pywac.record_with_callback(5, on_recording_complete)
     print("録音開始（バックグラウンド）...")
     
     # 録音完了まで待機
@@ -302,35 +302,35 @@ record_specific_app("firefox", "browser_audio.wav", 15)
 ### 🎮 ゲーム配信用オーディオミキサー
 
 ```python
-import pypac
+import pywac
 
 class StreamAudioMixer:
     """配信用のオーディオバランス調整"""
     
     def __init__(self):
-        self.manager = pypac.SessionManager()
+        self.manager = pywac.SessionManager()
     
     def setup_streaming(self):
         """配信用の音量設定"""
         # ゲーム音を70%
-        pypac.set_app_volume("game", 0.7)
+        pywac.set_app_volume("game", 0.7)
         
         # Discord を30%
-        pypac.set_app_volume("discord", 0.3)
+        pywac.set_app_volume("discord", 0.3)
         
         # Spotify をミュート
-        pypac.mute_app("spotify")
+        pywac.mute_app("spotify")
         
         print("✅ 配信用オーディオ設定完了！")
     
     def save_all_audio(self, duration=60):
         """システム音声を録音（全アプリの混合音声）"""
-        pypac.record_to_file(f"recording_{time.time()}.wav", duration)
+        pywac.record_to_file(f"recording_{time.time()}.wav", duration)
     
     def save_game_audio_only(self, game_name="game.exe", duration=60):
         """ゲーム音声のみを録音（Discord音声を除外）"""
         # Process Loopback APIでゲーム音声のみ録音！
-        pypac.record_process(game_name, f"game_only_{time.time()}.wav", duration)
+        pywac.record_process(game_name, f"game_only_{time.time()}.wav", duration)
         print("✅ ゲーム音声のみ録音完了（Discord音声なし！）")
 
 # 使用例
@@ -341,12 +341,12 @@ mixer.setup_streaming()
 ### 📊 リアルタイムオーディオメーター
 
 ```python
-import pypac
+import pywac
 import time
 
 def audio_meter(duration=30):
     """ビジュアルオーディオメーター"""
-    recorder = pypac.AudioRecorder()
+    recorder = pywac.AudioRecorder()
     recorder.start(duration=duration)
     
     print("🎵 オーディオレベルメーター")
@@ -356,8 +356,8 @@ def audio_meter(duration=30):
         buffer = recorder.get_buffer()
         if len(buffer) > 0:
             # RMS計算
-            rms = pypac.utils.calculate_rms(buffer)
-            db = pypac.utils.calculate_db(buffer)
+            rms = pywac.utils.calculate_rms(buffer)
+            db = pywac.utils.calculate_db(buffer)
             
             # ビジュアライズ
             bar_length = int(rms * 50)
@@ -377,7 +377,7 @@ audio_meter(10)
 ### 🎵 スマート音量調整
 
 ```python
-import pypac
+import pywac
 import schedule
 
 def auto_adjust_volume():
@@ -388,22 +388,22 @@ def auto_adjust_volume():
     
     if 22 <= hour or hour < 6:
         # 深夜は全体的に音量を下げる
-        for app in pypac.get_active_apps():
-            pypac.set_app_volume(app, 0.3)
+        for app in pywac.get_active_apps():
+            pywac.set_app_volume(app, 0.3)
         print("🌙 深夜モード: 音量30%")
     
     elif 9 <= hour < 17:
         # 仕事時間はビデオ会議アプリを優先
-        pypac.set_app_volume("zoom", 1.0)
-        pypac.set_app_volume("teams", 1.0)
-        pypac.set_app_volume("spotify", 0.2)
+        pywac.set_app_volume("zoom", 1.0)
+        pywac.set_app_volume("teams", 1.0)
+        pywac.set_app_volume("spotify", 0.2)
         print("💼 仕事モード: 会議優先")
     
     else:
         # 通常時間
-        sessions = pypac.get_active_sessions()
+        sessions = pywac.get_active_sessions()
         for s in sessions:
-            pypac.set_app_volume(s['process_name'], 0.7)
+            pywac.set_app_volume(s['process_name'], 0.7)
         print("🏠 通常モード: 音量70%")
 
 # スケジュール設定
@@ -418,27 +418,27 @@ schedule.every().hour.do(auto_adjust_volume)
 
 | 関数 | 説明 | 例 |
 |------|------|-----|
-| `record_to_file(filename, duration)` | 音声を録音してファイルに保存 | `pypac.record_to_file("out.wav", 5)` |
-| `record_process(name, filename, duration)` | プロセス固有録音 | `pypac.record_process("spotify", "spotify.wav", 10)` |
-| `record_process_id(pid, filename, duration)` | PID指定で録音 | `pypac.record_process_id(12345, "out.wav", 10)` |
-| `list_audio_sessions()` | 全オーディオセッション取得 | `sessions = pypac.list_audio_sessions()` |
-| `list_recordable_processes()` | 録音可能プロセス一覧 | `procs = pypac.list_recordable_processes()` |
-| `get_active_sessions()` | アクティブセッション取得 | `sessions = pypac.get_active_sessions()` |
-| `set_app_volume(app, volume)` | アプリ音量設定 (0.0-1.0) | `pypac.set_app_volume("chrome", 0.5)` |
-| `get_app_volume(app)` | アプリ音量取得 | `vol = pypac.get_app_volume("chrome")` |
-| `adjust_volume(app, delta)` | 音量を相対的に調整 | `pypac.adjust_volume("chrome", 0.1)` |
-| `mute_app(app)` | アプリをミュート | `pypac.mute_app("spotify")` |
-| `unmute_app(app)` | ミュート解除 | `pypac.unmute_app("spotify")` |
-| `find_audio_session(app)` | セッション情報取得 | `info = pypac.find_audio_session("firefox")` |
-| `record_with_callback(duration, callback)` | コールバック付き録音 | `pypac.record_with_callback(5, on_complete)` |
-| `save_to_wav(data, filename, sample_rate)` | WAVファイル保存 | `pypac.save_to_wav(audio_data, "out.wav", 48000)` |
+| `record_to_file(filename, duration)` | 音声を録音してファイルに保存 | `pywac.record_to_file("out.wav", 5)` |
+| `record_process(name, filename, duration)` | プロセス固有録音 | `pywac.record_process("spotify", "spotify.wav", 10)` |
+| `record_process_id(pid, filename, duration)` | PID指定で録音 | `pywac.record_process_id(12345, "out.wav", 10)` |
+| `list_audio_sessions()` | 全オーディオセッション取得 | `sessions = pywac.list_audio_sessions()` |
+| `list_recordable_processes()` | 録音可能プロセス一覧 | `procs = pywac.list_recordable_processes()` |
+| `get_active_sessions()` | アクティブセッション取得 | `sessions = pywac.get_active_sessions()` |
+| `set_app_volume(app, volume)` | アプリ音量設定 (0.0-1.0) | `pywac.set_app_volume("chrome", 0.5)` |
+| `get_app_volume(app)` | アプリ音量取得 | `vol = pywac.get_app_volume("chrome")` |
+| `adjust_volume(app, delta)` | 音量を相対的に調整 | `pywac.adjust_volume("chrome", 0.1)` |
+| `mute_app(app)` | アプリをミュート | `pywac.mute_app("spotify")` |
+| `unmute_app(app)` | ミュート解除 | `pywac.unmute_app("spotify")` |
+| `find_audio_session(app)` | セッション情報取得 | `info = pywac.find_audio_session("firefox")` |
+| `record_with_callback(duration, callback)` | コールバック付き録音 | `pywac.record_with_callback(5, on_complete)` |
+| `save_to_wav(data, filename, sample_rate)` | WAVファイル保存 | `pywac.save_to_wav(audio_data, "out.wav", 48000)` |
 
 ### 🔵 クラスAPI
 
 #### SessionManager
 
 ```python
-manager = pypac.SessionManager()
+manager = pywac.SessionManager()
 ```
 
 | メソッド | 説明 |
@@ -452,7 +452,7 @@ manager = pypac.SessionManager()
 #### AudioRecorder
 
 ```python
-recorder = pypac.AudioRecorder()
+recorder = pywac.AudioRecorder()
 ```
 
 | メソッド/プロパティ | 説明 |
@@ -473,7 +473,7 @@ recorder = pypac.AudioRecorder()
 ### よくある問題
 
 <details>
-<summary>❌ ImportError: No module named 'pypac'</summary>
+<summary>❌ ImportError: No module named 'pywac'</summary>
 
 **解決方法:**
 ```bash
@@ -510,11 +510,11 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 
 # システム情報を表示
-import pypac
-print(f"PyPAC Version: {pypac.__version__}")
+import pywac
+print(f"PyWAC Version: {pywac.__version__}")
 
 # オーディオセッション診断
-sessions = pypac.list_audio_sessions()
+sessions = pywac.list_audio_sessions()
 print(f"検出されたセッション: {len(sessions)}")
 for s in sessions:
     print(f"  - {s['process_name']} (PID: {s['process_id']})")
@@ -562,8 +562,8 @@ for s in sessions:
 
 ```bash
 # リポジトリクローン
-git clone https://github.com/yourusername/pypac.git
-cd pypac
+git clone https://github.com/Mega-Gorilla/pywac.git
+cd pywac
 
 # 開発環境構築
 python -m venv .venv
@@ -574,16 +574,16 @@ pip install -e .[dev]
 pytest tests/
 
 # コード品質チェック
-black pypac/
-pylint pypac/
-mypy pypac/
+black pywac/
+pylint pywac/
+mypy pywac/
 ```
 
 ### アーキテクチャ
 
 ```
-pypac/
-├── pypac/              # Pythonパッケージ
+pywac/
+├── pywac/              # Pythonパッケージ
 │   ├── __init__.py    # パッケージエントリ
 │   ├── api.py         # 高レベルAPI
 │   ├── sessions.py    # セッション管理
@@ -629,7 +629,7 @@ pypac/
 
 ## 🎮 Gradio デモアプリケーション
 
-PyPACの全機能を試せる統合デモアプリを用意しています：
+PyWACの全機能を試せる統合デモアプリを用意しています：
 
 ```bash
 # Gradioデモを起動

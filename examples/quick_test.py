@@ -1,15 +1,15 @@
 """
-PyPAC Quick Test - Simple functionality check using package API
+PyWAC Quick Test - Simple functionality check using package API
 """
 
-import pypac
+import pywac
 
 try:
-    print("[OK] PyPAC module loaded successfully!")
-    print(f"     Version: {pypac.__version__}")
+    print("[OK] PyWAC module loaded successfully!")
+    print(f"     Version: {pywac.__version__}")
     
     # Use the high-level API to list sessions
-    sessions = pypac.list_audio_sessions()
+    sessions = pywac.list_audio_sessions()
     
     print(f"\n[INFO] Found {len(sessions)} audio sessions:")
     for session in sessions[:5]:  # Show first 5
@@ -20,14 +20,14 @@ try:
         print(f"  ... and {len(sessions) - 5} more")
     
     # Test finding active sessions
-    active_sessions = pypac.get_active_sessions()
+    active_sessions = pywac.get_active_sessions()
     if active_sessions:
         print(f"\n[INFO] Active sessions: {', '.join(active_sessions)}")
     else:
         print("\n[INFO] No applications currently playing audio")
     
 except ImportError as e:
-    print(f"[ERROR] Failed to import PyPAC: {e}")
+    print(f"[ERROR] Failed to import PyWAC: {e}")
     print("\nPlease install the package:")
     print("  pip install -e .")
 except Exception as e:

@@ -1,5 +1,5 @@
 """
-PyPAC Module Health Check and Diagnostics
+PyWAC Module Health Check and Diagnostics
 """
 
 import sys
@@ -24,12 +24,12 @@ def check_environment():
     print(f"Python Architecture: {'64-bit' if is_64bit else '32-bit'}")
     
     if not is_64bit:
-        print("WARNING: 32-bit Python detected. PyPAC requires 64-bit Python.")
+        print("WARNING: 32-bit Python detected. PyWAC requires 64-bit Python.")
         return False
     
     # Check Windows version
     if not sys.platform.startswith('win'):
-        print("ERROR: PyPAC only works on Windows.")
+        print("ERROR: PyWAC only works on Windows.")
         return False
     
     # Check admin privileges
@@ -75,13 +75,13 @@ def check_module_files():
     
     print(f"dist/ folder: {dist_path}")
     
-    # Check for pypac.pyd
-    pypac_pyd = os.path.join(dist_path, 'pypac.pyd')
-    if os.path.exists(pypac_pyd):
-        size = os.path.getsize(pypac_pyd)
-        print(f"[OK] pypac.pyd found ({size:,} bytes)")
+    # Check for pywac.pyd
+    pywac_pyd = os.path.join(dist_path, 'pywac.pyd')
+    if os.path.exists(pywac_pyd):
+        size = os.path.getsize(pywac_pyd)
+        print(f"[OK] pywac.pyd found ({size:,} bytes)")
     else:
-        print("[ERROR] pypac.pyd not found")
+        print("[ERROR] pywac.pyd not found")
         print("Run: python setup.py build_ext --inplace")
         return False
     
@@ -118,7 +118,7 @@ def check_vcredist():
     return all_found
 
 def test_import():
-    """Try to import pypac module"""
+    """Try to import pywac module"""
     print("\n" + "=" * 60)
     print("MODULE IMPORT TEST")
     print("=" * 60)
@@ -127,16 +127,16 @@ def test_import():
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'dist'))
     
     try:
-        import pypac
-        print("[SUCCESS] pypac module imported!")
+        import pywac
+        print("[SUCCESS] pywac module imported!")
         
         # Check available classes
         classes = ['SessionEnumerator', 'SimpleLoopback']
         for cls in classes:
-            if hasattr(pypac, cls):
-                print(f"  [OK] pypac.{cls} available")
+            if hasattr(pywac, cls):
+                print(f"  [OK] pywac.{cls} available")
             else:
-                print(f"  [MISSING] pypac.{cls} not found")
+                print(f"  [MISSING] pywac.{cls} not found")
         
         return True
         
@@ -165,12 +165,12 @@ def test_functionality():
     print("=" * 60)
     
     try:
-        import pypac
+        import pywac
         
         # Test SessionEnumerator
         print("\nTesting SessionEnumerator...")
         try:
-            enumerator = pypac.SessionEnumerator()
+            enumerator = pywac.SessionEnumerator()
             sessions = enumerator.enumerate_sessions()
             print(f"  [OK] Found {len(sessions)} audio sessions")
         except Exception as e:
@@ -179,7 +179,7 @@ def test_functionality():
         # Test SimpleLoopback
         print("\nTesting SimpleLoopback...")
         try:
-            loopback = pypac.SimpleLoopback()
+            loopback = pywac.SimpleLoopback()
             print("  [OK] SimpleLoopback created")
         except Exception as e:
             print(f"  [FAILED] {e}")
@@ -188,7 +188,7 @@ def test_functionality():
         print("Cannot test functionality - module not imported")
 
 def main():
-    print("PyPAC MODULE HEALTH CHECK")
+    print("PyWAC MODULE HEALTH CHECK")
     print("=" * 60)
     print()
     
@@ -209,9 +209,9 @@ def main():
     print("=" * 60)
     
     if env_ok and files_ok and import_ok:
-        print("[SUCCESS] PyPAC is ready to use!")
+        print("[SUCCESS] PyWAC is ready to use!")
     else:
-        print("[FAILED] PyPAC has issues that need to be resolved.")
+        print("[FAILED] PyWAC has issues that need to be resolved.")
         print("\nNext steps:")
         print("1. Fix any missing dependencies")
         print("2. Install Visual C++ Redistributable if missing")

@@ -3,7 +3,7 @@ import os
 import sys
 import ctypes
 
-print("Checking pypac module dependencies...")
+print("Checking pywac module dependencies...")
 print(f"Python version: {sys.version}")
 print(f"Python executable: {sys.executable}")
 
@@ -25,15 +25,15 @@ for file in os.listdir(dist_path):
         print(f"  - {file} ({size:,} bytes)")
 
 # Try to load the module
-print("\nTrying to import pypac...")
+print("\nTrying to import pywac...")
 try:
-    import pypac
-    print("[SUCCESS] pypac imported successfully!")
+    import pywac
+    print("[SUCCESS] pywac imported successfully!")
 except ImportError as e:
     print(f"[FAILED] Import error: {e}")
     
     # Try to load as DLL directly
-    pyd_path = os.path.join(dist_path, "pypac.pyd")
+    pyd_path = os.path.join(dist_path, "pywac.pyd")
     if os.path.exists(pyd_path):
         print(f"\nTrying to load {pyd_path} as DLL...")
         try:

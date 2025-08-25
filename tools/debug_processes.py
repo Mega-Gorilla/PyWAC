@@ -26,17 +26,17 @@ def get_process_info_with_psutil(pid):
 
 def main():
     try:
-        import pypac
+        import pywac
     except ImportError as e:
-        print(f"[ERROR] Failed to import pypac: {e}")
+        print(f"[ERROR] Failed to import pywac: {e}")
         return
     
     print("=" * 60)
     print("PROCESS NAME DETECTION DEBUG")
     print("=" * 60)
     
-    # Get sessions from pypac
-    enumerator = pypac.SessionEnumerator()
+    # Get sessions from pywac
+    enumerator = pywac.SessionEnumerator()
     sessions = enumerator.enumerate_sessions()
     
     print(f"\n[INFO] Found {len(sessions)} audio sessions\n")
@@ -54,11 +54,11 @@ def main():
     for i, session in enumerate(sessions, 1):
         print(f"Session {i}:")
         print(f"  PID: {session.process_id}")
-        print(f"  PyPAC Name: {session.process_name}")
+        print(f"  PyWAC Name: {session.process_name}")
         print(f"  Display Name: {session.display_name if session.display_name else '(empty)'}")
         print(f"  State: {['Inactive', 'Active', 'Expired'][session.state]}")
         
-        # If pypac returns "Unknown", try to get more info
+        # If pywac returns "Unknown", try to get more info
         if session.process_name == "Unknown" and has_psutil:
             psutil_info = get_process_info_with_psutil(session.process_id)
             if 'error' not in psutil_info:
