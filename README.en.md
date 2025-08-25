@@ -267,9 +267,9 @@ while recorder.is_recording:
     time.sleep(1)
 
 audio_data = recorder.stop()
-if len(audio_data) > 0:
-    pywac.utils.save_to_wav(audio_data, "output.wav")
-    print(f"Saved: {len(audio_data)} samples")
+if audio_data.num_frames > 0:
+    audio_data.save("output.wav")
+    print(f"Saved: {audio_data.num_frames} samples")
 ```
 
 ### Native API (Low-Level Control)
@@ -332,16 +332,13 @@ def record_specific_app(app_name, output_file, duration=10):
 def record_with_callback_demo():
     """Record with callback on completion"""
     def on_recording_complete(audio_data):
-        print(f"Recording complete: {len(audio_data)} samples")
+        print(f"Recording complete: {audio_data.num_frames} samples")
         # Analyze audio
-        import numpy as np
-        audio_array = np.array(audio_data)
-        rms = np.sqrt(np.mean(audio_array ** 2))
-        db = 20 * np.log10(rms + 1e-10)
-        print(f"Average volume: {db:.1f} dB")
+        stats = audio_data.get_statistics()
+        print(f"Average volume: {stats['rms_db']:.1f} dB")
         
         # Save to WAV file
-        pywac.utils.save_to_wav(audio_data, "callback_recording.wav", 48000)
+        audio_data.save("callback_recording.wav")
         print("✅ Recording saved to callback_recording.wav!")
     
     # Record for 5 seconds (asynchronously)
@@ -413,11 +410,12 @@ def audio_meter(duration=30):
     print("-" * 50)
     
     while recorder.is_recording:
-        buffer = recorder.get_buffer()
-        if len(buffer) > 0:
-            # Calculate RMS
-            rms = pywac.utils.calculate_rms(buffer)
-            db = pywac.utils.calculate_db(buffer)
+        audio_data = recorder.get_audio()
+        if audio_data.num_frames > 0:
+            # Get statistics
+            stats = audio_data.get_statistics()
+            rms = stats['rms']
+            db = stats['rms_db']
             
             # Visualize
             bar_length = int(rms * 50)

@@ -267,9 +267,9 @@ while recorder.is_recording:
     time.sleep(1)
 
 audio_data = recorder.stop()
-if len(audio_data) > 0:
-    pywac.utils.save_to_wav(audio_data, "output.wav")
-    print(f"Saved: {len(audio_data)} samples")
+if audio_data.num_frames > 0:
+    audio_data.save("output.wav")
+    print(f"Saved: {audio_data.num_frames} samples")
 ```
 
 ### ネイティブ API (低レベル制御)
@@ -332,16 +332,13 @@ def record_specific_app(app_name, output_file, duration=10):
 def record_with_callback_demo():
     """録音完了時にコールバックを実行"""
     def on_recording_complete(audio_data):
-        print(f"録音完了: {len(audio_data)} サンプル")
+        print(f"録音完了: {audio_data.num_frames} サンプル")
         # 音声解析
-        import numpy as np
-        audio_array = np.array(audio_data)
-        rms = np.sqrt(np.mean(audio_array ** 2))
-        db = 20 * np.log10(rms + 1e-10)
-        print(f"平均音量: {db:.1f} dB")
+        stats = audio_data.get_statistics()
+        print(f"平均音量: {stats['rms_db']:.1f} dB")
         
         # WAVファイルに保存
-        pywac.utils.save_to_wav(audio_data, "callback_recording.wav", 48000)
+        audio_data.save("callback_recording.wav")
         print("✅ 録音をcallback_recording.wavに保存！")
     
     # 5秒間録音（非同期）
@@ -414,11 +411,12 @@ def audio_meter(duration=30):
     print("-" * 50)
     
     while recorder.is_recording:
-        buffer = recorder.get_buffer()
-        if len(buffer) > 0:
-            # RMS計算
-            rms = pywac.utils.calculate_rms(buffer)
-            db = pywac.utils.calculate_db(buffer)
+        audio_data = recorder.get_audio()
+        if audio_data.num_frames > 0:
+            # 統計情報を取得
+            stats = audio_data.get_statistics()
+            rms = stats['rms']
+            db = stats['rms_db']
             
             # ビジュアライズ
             bar_length = int(rms * 50)
