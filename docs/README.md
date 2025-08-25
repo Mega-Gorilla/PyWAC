@@ -6,19 +6,14 @@ Welcome to the PyWAC documentation directory. This folder contains all technical
 
 ### Core Documentation
 - [`API_REFERENCE.md`](./API_REFERENCE.md) - Complete API reference
-- [`ARCHITECTURE.md`](./ARCHITECTURE.md) - System architecture and design decisions
-- [`BUILD_GUIDE.md`](./BUILD_GUIDE.md) - Building from source instructions
+- [`PROCESS_LOOPBACK_INVESTIGATION.md`](./PROCESS_LOOPBACK_INVESTIGATION.md) - Windows Process Loopback API research
 
 ### Migration Guides
 - [`migrations/`](./migrations/) - Version-specific migration guides
   - [`v0.3.0-audiodata.md`](./migrations/v0.3.0-audiodata.md) - AudioData migration guide
 
 ### Development
-- [`CONTRIBUTING.md`](./CONTRIBUTING.md) - Contribution guidelines
-- [`TESTING.md`](./TESTING.md) - Testing guidelines and strategies
-
-### Archives
-- [`archive/`](./archive/) - Deprecated documentation and historical notes
+- [`version-management.md`](./version-management.md) - Version management strategy
 
 ## 🔄 Version Management
 

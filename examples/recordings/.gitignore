@@ -1,8 +1,0 @@
-# Ignore all audio files in this directory
-*.wav
-*.mp3
-*.ogg
-*.flac
-
-# But keep this file
-!.gitignore

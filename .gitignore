@@ -49,8 +49,12 @@ desktop.ini
 *.temp
 *.log
 nul
+recordings/
+examples/recordings/
 
-CLAUDE.md
 # External repositories (cloned for reference)
 windows-classic-samples/
 win-capture-audio/
+
+# Documentation archives
+docs/archive/
