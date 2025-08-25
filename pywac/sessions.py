@@ -178,8 +178,23 @@ class SessionManager:
         session = self.find_session(app_name)
         return session.muted if session else None
     
-    def get_active_sessions(self) -> List[AudioSession]:
-        """Get all active audio sessions."""
+    def get_active_sessions(self) -> List[str]:
+        """
+        Get list of process names currently playing audio.
+        
+        Returns:
+            List of process names with active sessions
+        """
+        sessions = self.list_sessions(active_only=True)
+        return [s.process_name for s in sessions]
+    
+    def get_active_session_objects(self) -> List[AudioSession]:
+        """
+        Get all active audio session objects.
+        
+        Returns:
+            List of AudioSession objects for active sessions
+        """
         return self.list_sessions(active_only=True)
     
     def get_session_info(self, app_name: str) -> Optional[Dict[str, Any]]:

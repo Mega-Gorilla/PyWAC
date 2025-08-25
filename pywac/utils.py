@@ -34,12 +34,21 @@ def save_to_wav(audio_data: Union[List[float], np.ndarray],
     """
     Save audio data to a WAV file.
     
+    DEPRECATED: Use AudioData.save() instead.
+    This function is kept for backward compatibility only.
+    
     Args:
         audio_data: Audio samples (float32 or int16)
         filename: Output WAV filename
         sample_rate: Sample rate in Hz
         channels: Number of channels
     """
+    import warnings
+    warnings.warn(
+        "save_to_wav is deprecated. Use AudioData.save() instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
     # Convert to list if numpy array
     if hasattr(audio_data, 'tolist'):
         audio_data = audio_data.tolist()
@@ -80,12 +89,21 @@ def load_wav(filename: str) -> Tuple[List[float], int, int]:
     """
     Load audio data from a WAV file.
     
+    DEPRECATED: Use AudioData.load() instead.
+    This function is kept for backward compatibility only.
+    
     Args:
         filename: Input WAV filename
         
     Returns:
         Tuple of (audio_data, sample_rate, channels)
     """
+    import warnings
+    warnings.warn(
+        "load_wav is deprecated. Use AudioData.load() instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
     with wave.open(filename, 'rb') as wav_file:
         channels = wav_file.getnchannels()
         sample_rate = wav_file.getframerate()

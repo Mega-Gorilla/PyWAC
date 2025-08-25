@@ -96,12 +96,13 @@ class AudioRecorder:
                 pass  # Ignore errors if already stopped
         
         # Get the recorded audio
-        audio_data = self._audio_buffer.copy() if self._audio_buffer else []
+        audio_buffer = self._audio_buffer.copy() if self._audio_buffer else []
         
         # Clean up
         self._cleanup()
         
-        return audio_data
+        # Convert to AudioData
+        return self._create_audio_data(audio_buffer)
     
     def _record_loop(self):
         """Internal recording loop (runs in separate thread)."""
