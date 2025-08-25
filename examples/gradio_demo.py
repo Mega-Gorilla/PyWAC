@@ -752,16 +752,20 @@ def create_interface():
                 
                 if "成功" in status:
                     status_html = app.recording_manager._create_status_html(f"✅ {status}", "rgba(30, 30, 46, 0.5)", "#e0e0e0")
+                    # 録音が成功した場合はリストを更新
+                    recordings_update = gr.update(choices=app.list_recordings())
                 else:
                     status_html = app.recording_manager.get_recording_progress()
+                    recordings_update = gr.update()  # リストを更新しない
                 
-                return status_html, audio, monitoring_info, gr.Timer(active=False)
+                return status_html, audio, monitoring_info, gr.Timer(active=False), recordings_update
             else:
                 return (
                     app.recording_manager.get_recording_progress(),
                     None,
                     app.recording_manager.get_monitoring_status() if app.recording_manager.monitoring_active else "",
-                    gr.Timer(active=True)
+                    gr.Timer(active=True),
+                    gr.update()  # 録音中はリストを更新しない
                 )
         
         # イベントバインディング

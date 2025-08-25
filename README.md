@@ -39,69 +39,54 @@ print(f"アクティブなセッション: {', '.join(active)}")
 
 ---
 
-## 📖 目次
+## 📋 Contents
 
-- [なぜPyWACが必要か？](#-なぜpywacが必要か)
-- [主な機能](#-主な機能)
-- [インストール](#-インストール)
-- [使い方](#-使い方)
-  - [Level 1: 超簡単 - 関数API](#level-1-超簡単---関数api)
-  - [Level 2: 柔軟 - クラスAPI](#level-2-柔軟---クラスapi)
-  - [Level 3: 完全制御 - ネイティブAPI](#level-3-完全制御---ネイティブapi)
-- [実用例](#-実用例)
-- [APIリファレンス](#-apiリファレンス)
-- [トラブルシューティング](#-トラブルシューティング)
-- [開発者向け](#-開発者向け)
-
----
-
-## 🤔 なぜPyWACが必要か？
-
-### 既存ライブラリの問題点
-
-| ライブラリ | 問題 |
-|-----------|------|
-| PyAudio | Windowsの最新APIに非対応 |
-| sounddevice | プロセス単位の制御不可 |
-| PyAudioWPatch | システム全体の音声のみ |
-| OBS win-capture-audio | GUIアプリ専用、Python非対応 |
-
-### PyWACの解決策
-
-| 機能 | PyWAC | 他のライブラリ |
-|------|-------|--------------|
-| プロセス別音量制御 | ✅ | ❌ |
-| **アプリ単位の録音** | ✅ | ❌ |
-| 簡単なAPI | ✅ 1行で実行 | ❌ 複雑な設定 |
-| Windows 11対応 | ✅ | ⚠️ 限定的 |
-| Process Loopback API | ✅ | ❌ |
+- [Features](#-features)
+- [Requirements](#-requirements)
+- [Installation](#-installation)
+- [Quick Start](#-quick-start)
+- [Demo](#-demo)
+- [Usage](#-usage)
+- [Examples](#-examples)
+- [API Reference](#-api-reference)
+- [Development](#-development)
+- [Troubleshooting](#-troubleshooting)
+- [License](#-license)
 
 ---
 
-## 主要機能
+## ✨ Features
 
-### Process Loopback API による プロセス固有録音 ✅
+### 🎯 主な特徴
 
-Windows 10 2004 (Build 19041) 以降で利用可能な Process Loopback API を使用し、特定プロセスの音声ストリームを分離してキャプチャする機能を実装しました。これにより、ゲーム音声とボイスチャット音声を分離して録音することが可能です。
+- **プロセス別音声録音** - 特定アプリケーションの音声のみを録音（Windows 10 2004+）
+- **音量制御** - アプリケーション単位での音量調整・ミュート
+- **シンプルなAPI** - 1行のコードで録音開始
+- **リアルタイム監視** - 音声セッションの状態をリアルタイムで取得
+- **モダンなUI** - Gradioベースの対話型デモアプリケーション
+- **Windows 11完全対応** - 最新のWindows Audio APIを活用
 
-**技術仕様:**
-- Windows Audio Session API (WASAPI) を使用したオーディオセッション管理
-- `ActivateAudioInterfaceAsync` による非同期オーディオインターフェース初期化
-- `AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK` によるプロセス固有キャプチャ
-- `PROCESS_LOOPBACK_MODE_INCLUDE_TARGET_PROCESS_TREE` で対象プロセスの音声を録音
-- 48kHz / 32bit float / ステレオ の固定フォーマット（`GetMixFormat()` が E_NOTIMPL を返すため）
-- 最大60秒のバッファリング対応
+### 🔍 なぜPyWACを選ぶ？
 
-**実装詳細:**
-- C++17 による低レベル実装（`src/process_loopback_v2.cpp`）
-- pybind11 を使用した Python バインディング
-- COM マルチスレッド環境での動作（`COINIT_MULTITHREADED`）
-
-詳細な技術仕様は [技術調査レポート](docs/PROCESS_LOOPBACK_INVESTIGATION.md) を参照してください。
+| 機能 | PyWAC | PyAudio | sounddevice | PyAudioWPatch |
+|------|-------|---------|-------------|---------------|
+| プロセス別録音 | ✅ | ❌ | ❌ | ❌ |
+| アプリ音量制御 | ✅ | ❌ | ❌ | ❌ |
+| Windows 11対応 | ✅ | ⚠️ | ⚠️ | ✅ |
+| 簡単なAPI | ✅ | ❌ | ⚠️ | ⚠️ |
+| Process Loopback | ✅ | ❌ | ❌ | ❌ |
 
 ---
 
-## 📦 インストール
+## 📋 Requirements
+
+- **OS**: Windows 10 version 2004 (Build 19041) 以降
+- **Python**: 3.7 以降
+- **コンパイラ**: Microsoft Visual C++ 14.0 以降（ビルド時のみ）
+
+---
+
+## 📦 Installation
 
 ### 方法1: 簡単インストール（推奨）
 
@@ -139,7 +124,81 @@ python setup.py build_ext --inplace
 
 ---
 
-## API 使用方法
+## 🚀 Quick Start
+
+### 基本的な使い方
+
+```python
+import pywac
+
+# システム音声を録音
+pywac.record_to_file("output.wav", duration=5)
+
+# 特定アプリの音声のみ録音
+pywac.record_process("spotify", "spotify_only.wav", duration=10)
+
+# アプリの音量を調整
+pywac.set_app_volume("firefox", 0.5)  # 50%に設定
+```
+
+## 🎮 Demo
+
+### Gradioインタラクティブデモ
+
+PyWACの全機能を体験できる対話型デモアプリケーションを提供しています：
+
+```bash
+# デモアプリケーションを起動
+python examples/gradio_demo.py
+```
+
+ブラウザで `http://localhost:7860` にアクセスしてください。
+
+#### デモの機能
+
+##### 📊 セッション管理
+- アクティブな音声セッションをリアルタイム表示
+- 各アプリケーションのプロセスID、状態、音量を確認
+- ワンクリックでセッションリストを更新
+
+##### 🎚️ 音量制御
+- スライダーで各アプリの音量を調整（0-100%）
+- ミュート/ミュート解除をワンクリックで切り替え
+- 音量変更は即座に反映
+
+##### 🔴 録音機能
+3つの録音モードを提供：
+- **システム録音**: すべての音声を録音
+- **プロセス録音**: 特定アプリの音声のみを録音（Discord等を除外可能）
+- **コールバック録音**: リアルタイムモニタリング付き録音
+
+##### 📈 リアルタイムモニタリング
+- 録音中の音声レベルをリアルタイム表示
+- RMS値とdBレベルを継続的に更新
+- 視覚的なプログレスバー表示
+
+##### 💾 録音管理
+- 録音ファイルを自動的にリスト表示（新しい順）
+- ワンクリックで録音を再生
+- ファイルサイズと録音日時を表示
+
+##### 🎨 モダンなUI
+- ダークテーマ対応のモダンなインターフェース
+- レスポンシブデザイン
+- 日本語/英語対応
+
+### サンプルスクリプト
+
+```bash
+# 基本的な使用例
+python examples/basic_usage.py
+
+# プロセス別録音のテスト
+python examples/record_app_audio.py --list  # 録音可能なアプリをリスト表示
+python examples/record_app_audio.py --app spotify --duration 10
+```
+
+## 📚 Usage
 
 ### 高レベル API (シンプル関数)
 
@@ -250,9 +309,9 @@ if loopback.start():
 
 ---
 
-## 💡 実用例
+## 💡 Examples
 
-### 🎯 プロセス固有録音の使い方（目玉機能！）
+### 🎯 プロセス固有録音の使い方
 
 ```python
 import pywac
@@ -412,7 +471,7 @@ schedule.every().hour.do(auto_adjust_volume)
 
 ---
 
-## 📚 APIリファレンス
+## 📖 API Reference
 
 ### 🟢 簡単関数API
 
@@ -468,7 +527,7 @@ recorder = pywac.AudioRecorder()
 
 ---
 
-## 🔧 トラブルシューティング
+## 🔧 Troubleshooting
 
 ### よくある問題
 
@@ -522,29 +581,7 @@ for s in sessions:
 
 ---
 
-## 📊 パフォーマンス
-
-### 実測値（Windows 11 環境）
-
-| 操作 | 時間 | 備考 |
-|------|------|------|
-| セッション列挙 | < 10ms | 5セッション |
-| 音量変更 | < 5ms | 即座に反映 |
-| 録音開始 | < 50ms | 初期化含む |
-| 1秒録音のサンプル数 | 約96,000 | 48kHz×2ch |
-| メモリ使用量 | < 50MB | 通常使用時 |
-
-### システム要件
-
-| 最小要件 | 推奨要件 |
-|---------|---------|
-| Windows 10 2004 | Windows 11 |
-| 4GB RAM | 8GB RAM |
-| Python 3.7 | Python 3.10+ |
-
----
-
-## 🛠️ 開発者向け
+## 🛠️ Development
 
 ### ビルド環境
 
@@ -590,10 +627,36 @@ pywac/
 │   ├── recorder.py    # 録音機能
 │   └── utils.py       # ユーティリティ
 ├── src/               # C++ソース
-│   └── audio_session_capture.cpp
+│   ├── pypac_native.cpp      # メインモジュール
+│   └── process_loopback_v2.cpp # Process Loopback実装
 ├── examples/          # サンプルコード
 └── tests/            # テスト
 ```
+
+### 技術詳細: Process Loopback API
+
+Windows 10 2004 (Build 19041) で導入されたProcess Loopback APIを使用して、プロセス単位の音声キャプチャを実現しています。
+
+#### 実装の特徴
+
+- **API**: `ActivateAudioInterfaceAsync` with `AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK`
+- **フォーマット**: 48kHz / 32bit float / ステレオ（固定）
+- **バッファ**: 最大60秒のリングバッファ
+- **遅延**: < 50ms
+- **スレッドモデル**: COMマルチスレッド (`COINIT_MULTITHREADED`)
+
+#### パフォーマンス
+
+| 操作 | 時間 | 備考 |
+|------|------|------|
+| セッション列挙 | < 10ms | 5セッション |
+| 音量変更 | < 5ms | 即座に反映 |
+| 録音開始 | < 50ms | 初期化含む |
+| プロセス録音初期化 | < 200ms | COM初期化含む |
+| CPU使用率 | < 2% | 録音中 |
+| メモリ使用量 | < 50MB | 60秒バッファ |
+
+詳細な技術仕様は[技術調査レポート](docs/PROCESS_LOOPBACK_INVESTIGATION.md)を参照してください。
 
 ### コントリビューション
 
@@ -627,29 +690,12 @@ pywac/
 
 ---
 
-## 🎮 Gradio デモアプリケーション
 
-PyWACの全機能を試せる統合デモアプリを用意しています：
-
-```bash
-# Gradioデモを起動
-python examples/gradio_demo.py
-```
-
-### デモの機能：
-- 📊 **セッション管理**: リアルタイムで音声セッションを監視・制御
-- 🎚️ **音量制御**: 各アプリの音量をGUIで調整
-- 🔴 **録音機能**: システム/プロセス/コールバック録音をサポート
-- 📈 **モニタリング**: 録音中の音声レベルをリアルタイム表示
-- 🌙 **ダークテーマ**: 目に優しいモダンなUI
-
----
-
-## 📄 ライセンス
+## 📄 License
 
 MIT License - 詳細は[LICENSE](LICENSE)参照
 
-## 🙏 謝辞
+## 🙏 Acknowledgments
 
 - [pybind11](https://github.com/pybind/pybind11) - 優れたC++バインディング
 - [OBS Studio](https://obsproject.com/) - オーディオキャプチャの参考実装

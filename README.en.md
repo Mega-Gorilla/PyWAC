@@ -39,69 +39,54 @@ print(f"Active sessions: {', '.join(active)}")
 
 ---
 
-## Contents
+## 📋 Contents
 
-- [Why PyWAC?](#why-pywac)
-- [Key Features](#key-features)
-- [Installation](#installation)
-- [Usage](#usage)
-  - [Level 1: Super Simple - Function API](#level-1-super-simple---function-api)
-  - [Level 2: Flexible - Class API](#level-2-flexible---class-api)
-  - [Level 3: Full Control - Native API](#level-3-full-control---native-api)
-- [Practical Examples](#practical-examples)
-- [API Reference](#api-reference)
-- [Troubleshooting](#troubleshooting)
-- [For Developers](#for-developers)
-
----
-
-## Why PyWAC?
-
-### Problems with Existing Libraries
-
-| Library | Issue |
-|---------|-------|
-| PyAudio | No support for modern Windows APIs |
-| sounddevice | Cannot control individual processes |
-| PyAudioWPatch | System-wide audio only |
-| OBS win-capture-audio | GUI app only, no Python support |
-
-### PyWAC's Solution
-
-| Feature | PyWAC | Other Libraries |
-|---------|-------|-----------------|
-| Per-process volume control | ✅ | ❌ |
-| **Per-app audio recording** | ✅ | ❌ |
-| Simple API | ✅ One-liner execution | ❌ Complex setup |
-| Windows 11 support | ✅ | ⚠️ Limited |
-| Process Loopback API | ✅ | ❌ |
+- [Features](#-features)
+- [Requirements](#-requirements)
+- [Installation](#-installation)
+- [Quick Start](#-quick-start)
+- [Demo](#-demo)
+- [Usage](#-usage)
+- [Examples](#-examples)
+- [API Reference](#-api-reference)
+- [Development](#-development)
+- [Troubleshooting](#-troubleshooting)
+- [License](#-license)
 
 ---
 
-## Key Features
+## ✨ Features
 
-### Process-Specific Audio Recording via Process Loopback API ✅
+### 🎯 Main Features
 
-Implemented process-specific audio capture using the Windows Process Loopback API, available in Windows 10 2004 (Build 19041) and later. This enables isolation and capture of audio streams from individual processes, allowing separation of game audio from voice chat.
+- **Process-specific audio recording** - Record audio from specific applications only (Windows 10 2004+)
+- **Volume control** - Per-application volume adjustment and muting
+- **Simple API** - Start recording with just one line of code
+- **Real-time monitoring** - Get audio session status in real-time
+- **Modern UI** - Interactive Gradio-based demo application
+- **Full Windows 11 support** - Leverages the latest Windows Audio APIs
 
-**Technical Specifications:**
-- Audio session management via Windows Audio Session API (WASAPI)
-- Asynchronous audio interface initialization using `ActivateAudioInterfaceAsync`
-- Process-specific capture through `AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK`
-- Target process audio recording with `PROCESS_LOOPBACK_MODE_INCLUDE_TARGET_PROCESS_TREE`
-- Fixed format: 48kHz / 32-bit float / stereo (due to `GetMixFormat()` returning E_NOTIMPL)
-- Up to 60 seconds buffering support
+### 🔍 Why Choose PyWAC?
 
-**Implementation Details:**
-- Low-level implementation in C++17 (`src/process_loopback_v2.cpp`)
-- Python bindings via pybind11
-- COM multithreaded environment support (`COINIT_MULTITHREADED`)
-
-For detailed technical specifications, see the [Technical Investigation Report](docs/PROCESS_LOOPBACK_INVESTIGATION.md).
+| Feature | PyWAC | PyAudio | sounddevice | PyAudioWPatch |
+|---------|-------|---------|-------------|---------------|
+| Process-specific recording | ✅ | ❌ | ❌ | ❌ |
+| App volume control | ✅ | ❌ | ❌ | ❌ |
+| Windows 11 support | ✅ | ⚠️ | ⚠️ | ✅ |
+| Simple API | ✅ | ❌ | ⚠️ | ⚠️ |
+| Process Loopback | ✅ | ❌ | ❌ | ❌ |
 
 ---
 
-## Installation
+## 📋 Requirements
+
+- **OS**: Windows 10 version 2004 (Build 19041) or later
+- **Python**: 3.7 or later
+- **Compiler**: Microsoft Visual C++ 14.0 or later (for building only)
+
+---
+
+## 📦 Installation
 
 ### Method 1: Easy Install (Recommended)
 
@@ -139,7 +124,81 @@ python setup.py build_ext --inplace
 
 ---
 
-## API Usage
+## 🚀 Quick Start
+
+### Basic Usage
+
+```python
+import pywac
+
+# Record system audio
+pywac.record_to_file("output.wav", duration=5)
+
+# Record specific app audio only
+pywac.record_process("spotify", "spotify_only.wav", duration=10)
+
+# Adjust app volume
+pywac.set_app_volume("firefox", 0.5)  # Set to 50%
+```
+
+## 🎮 Demo
+
+### Gradio Interactive Demo
+
+PyWAC includes a comprehensive interactive demo application showcasing all features:
+
+```bash
+# Launch the demo application
+python examples/gradio_demo.py
+```
+
+Open your browser and navigate to `http://localhost:7860`.
+
+#### Demo Features
+
+##### 📊 Session Management
+- View active audio sessions in real-time
+- Monitor process IDs, states, and volume levels
+- Refresh session list with one click
+
+##### 🎚️ Volume Control
+- Adjust app volume with sliders (0-100%)
+- Toggle mute/unmute with one click
+- Changes apply instantly
+
+##### 🔴 Recording Features
+Three recording modes available:
+- **System Recording**: Capture all system audio
+- **Process Recording**: Record specific app audio only (exclude Discord, etc.)
+- **Callback Recording**: Record with real-time monitoring
+
+##### 📈 Real-time Monitoring
+- View audio levels during recording
+- Continuous RMS and dB level updates
+- Visual progress bar display
+
+##### 💾 Recording Management
+- Auto-list recordings (newest first)
+- One-click playback
+- Display file size and recording time
+
+##### 🎨 Modern UI
+- Dark theme support
+- Responsive design
+- Multi-language support
+
+### Sample Scripts
+
+```bash
+# Basic usage examples
+python examples/basic_usage.py
+
+# Test process-specific recording
+python examples/record_app_audio.py --list  # List recordable apps
+python examples/record_app_audio.py --app spotify --duration 10
+```
+
+## 📚 Usage
 
 ### High-Level API (Simple Functions)
 
@@ -250,7 +309,7 @@ if loopback.start():
 
 ---
 
-## Practical Examples
+## 💡 Examples
 
 ### 🎯 Process-Specific Recording (Key Feature!)
 
@@ -374,7 +433,7 @@ audio_meter(10)
 
 ---
 
-## API Reference
+## 📖 API Reference
 
 ### Simple Function API
 
@@ -437,27 +496,8 @@ print("Recording in progress...")
 
 ---
 
-## Interactive Demo
 
-### Gradio Demo Application
-
-PyWAC includes a comprehensive interactive demo built with Gradio that showcases all features:
-
-```bash
-# Run the demo
-python examples/gradio_demo.py
-```
-
-The demo includes:
-- **Session Management**: View and control all active audio sessions
-- **Volume Control**: Real-time volume adjustment for each application
-- **Recording Interface**: Test system-wide and process-specific recording
-- **Audio Analysis**: Real-time RMS and dB level monitoring
-- **Export Options**: Save recordings in various formats
-
----
-
-## Troubleshooting
+## 🔧 Troubleshooting
 
 ### Common Issues
 
@@ -493,21 +533,8 @@ python setup.py build_ext --inplace
 
 ---
 
-## Performance
 
-### Benchmarks (Windows 11)
-
-| Operation | Time | Notes |
-|-----------|------|-------|
-| Session enumeration | < 10ms | 5 sessions |
-| Volume change | < 5ms | Instant |
-| Recording start | < 50ms | Including init |
-| 1 second recording samples | ~96,000 | 48kHz×2ch |
-| Memory usage | < 50MB | Normal use |
-
----
-
-## For Developers
+## 🛠️ Development
 
 ### Build Environment
 
@@ -548,15 +575,40 @@ pywac/
 │   ├── recorder.py    # Recording features
 │   └── utils.py       # Utilities
 ├── src/               # C++ source
-│   ├── audio_session_capture.cpp
-│   └── process_loopback_v2.cpp  # Process-specific recording
+│   ├── pypac_native.cpp      # Main module
+│   └── process_loopback_v2.cpp # Process Loopback implementation
 ├── examples/          # Sample code
 └── tests/            # Tests
 ```
 
+### Technical Details: Process Loopback API
+
+PyWAC uses the Process Loopback API introduced in Windows 10 2004 (Build 19041) to enable process-specific audio capture.
+
+#### Implementation Features
+
+- **API**: `ActivateAudioInterfaceAsync` with `AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK`
+- **Format**: 48kHz / 32-bit float / stereo (fixed)
+- **Buffer**: Up to 60 seconds ring buffer
+- **Latency**: < 50ms
+- **Threading**: COM multithreaded (`COINIT_MULTITHREADED`)
+
+#### Performance
+
+| Operation | Time | Notes |
+|-----------|------|-------|
+| Session enumeration | < 10ms | 5 sessions |
+| Volume change | < 5ms | Instant |
+| Recording start | < 50ms | Including init |
+| Process recording init | < 200ms | Including COM init |
+| CPU usage | < 2% | During recording |
+| Memory usage | < 50MB | 60-second buffer |
+
+For detailed technical specifications, see the [Technical Investigation Report](docs/PROCESS_LOOPBACK_INVESTIGATION.md).
+
 ---
 
-## Tested Environments
+## ✅ Tested Environments
 
 | Environment | Version | Status |
 |-------------|---------|--------|
@@ -575,11 +627,11 @@ pywac/
 
 ---
 
-## License
+## 📄 License
 
 MIT License - See [LICENSE](LICENSE) for details
 
-## Acknowledgments
+## 🙏 Acknowledgments
 
 - [pybind11](https://github.com/pybind/pybind11) - Excellent C++ bindings
 - [OBS Studio](https://obsproject.com/) - Audio capture reference implementation
