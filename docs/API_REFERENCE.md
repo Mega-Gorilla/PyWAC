@@ -492,8 +492,71 @@ capture = QueueBasedStreamingCapture(
 
 ---
 
+## Unified Recording API (v0.4.2+)
+
+### `pywac.unified_recording.record()`
+統一録音関数 - すべての録音モードをサポートする単一のコア関数。
+
+```python
+def record(
+    duration: float,
+    target: Optional[Union[str, int]] = None,
+    output_file: Optional[str] = None,
+    on_complete: Optional[Callable[[AudioData], None]] = None,
+    fallback_enabled: bool = True
+) -> Union[AudioData, bool, None]
+```
+
+**パラメータ:**
+- `duration`: 録音時間（秒）
+- `target`: None（システム全体）、プロセス名（str）、またはPID（int）
+- `output_file`: 指定した場合、ファイルに保存してboolを返す
+- `on_complete`: 指定した場合、非同期実行してコールバックを呼び出す
+- `fallback_enabled`: True の場合、失敗時にネイティブレコーダーにフォールバック
+
+**戻り値:**
+- コールバック指定時: None（非同期実行）
+- ファイル名指定時: bool（成功/失敗）
+- それ以外: AudioDataオブジェクト
+
+**例:**
+```python
+from pywac.unified_recording import record
+
+# システム録音
+audio = record(5)
+
+# プロセス録音
+audio = record(5, target="firefox")
+success = record(5, target="spotify", output_file="spotify.wav")
+
+# 非同期録音
+record(5, on_complete=lambda audio: audio.save("async.wav"))
+```
+
+### `pywac.unified_recording.Recorder`
+クリーンなクラスベースの録音インターフェース。
+
+```python
+# Firefoxのレコーダーを作成
+recorder = Recorder(target="firefox")
+
+if recorder.is_available():
+    # 同期録音
+    audio = recorder.record(5)
+    
+    # ファイルへ直接録音
+    recorder.record_to_file(5, "firefox.wav")
+    
+    # 非同期録音
+    recorder.record_async(5, callback_function)
+```
+
+---
+
 ## バージョン履歴
 
+- **v0.4.2**: 統一録音API、すべての録音モードを単一関数に統合
 - **v0.4.1**: イベント駆動キャプチャ（SetEventHandle）、CPU使用率 < 1%
 - **v0.4.0**: キューベースアーキテクチャ、GIL問題解決、CPU使用率 < 5%
 - **v0.3.0**: AudioDataクラス、統一フォーマット処理

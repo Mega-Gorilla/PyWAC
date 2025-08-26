@@ -10,6 +10,7 @@ from typing import List, Optional, Dict, Any
 from .sessions import SessionManager
 from .recorder import AudioRecorder
 from .audio_data import AudioData
+from .unified_recording import record as unified_record, Recorder
 
 
 def _import_process_loopback():
@@ -228,15 +229,8 @@ def record_audio(duration: float) -> AudioData:
         >>> print(f"Recorded {audio.duration:.1f} seconds")
         >>> audio.save("output.wav")
     """
-    # Try using process loopback with PID=0 for system-wide recording
-    audio_data = _record_with_loopback(0, duration)
-    
-    if audio_data is not None:
-        return audio_data
-    
-    # Fallback to native recorder if loopback failed
-    recorder = _get_audio_recorder()
-    return recorder.record(duration)
+    # Use unified recording with system target (None)
+    return unified_record(duration, target=None, fallback_enabled=True)
 
 
 def record_to_file(filename: str, duration: float) -> bool:
@@ -254,12 +248,9 @@ def record_to_file(filename: str, duration: float) -> bool:
         >>> pywac.record_to_file("output.wav", 10)  # Record 10 seconds
         True
     """
-    try:
-        audio = record_audio(duration)
-        audio.save(filename)
-        return True
-    except Exception:
-        return False
+    # Use unified recording with output file specified
+    result = unified_record(duration, target=None, output_file=filename)
+    return result if isinstance(result, bool) else False
 
 
 def record_process(process_name: str, filename: str, duration: float) -> bool:
@@ -282,29 +273,9 @@ def record_process(process_name: str, filename: str, duration: float) -> bool:
         Requires Windows 10 version 2004 (Build 19041) or later.
         Uses Process Loopback API for process-specific audio capture.
     """
-    try:
-        loopback = _import_process_loopback()
-        if loopback is None:
-            return False
-        
-        # Find process by name
-        processes = loopback.list_audio_processes()
-        target_pid = None
-        
-        process_name_lower = process_name.lower()
-        for proc in processes:
-            proc_name = getattr(proc, 'name', '')
-            if process_name_lower in proc_name.lower():
-                target_pid = getattr(proc, 'pid', 0)
-                break
-        
-        if target_pid is None:
-            return False
-        
-        return record_process_id(target_pid, filename, duration)
-        
-    except Exception:
-        return False
+    # Use unified recording with process name as target
+    result = unified_record(duration, target=process_name, output_file=filename)
+    return result if isinstance(result, bool) else False
 
 
 def record_process_id(pid: int, filename: str, duration: float) -> bool:
@@ -327,25 +298,9 @@ def record_process_id(pid: int, filename: str, duration: float) -> bool:
         Requires Windows 10 version 2004 (Build 19041) or later.
         Uses Process Loopback API for process-specific audio capture.
     """
-    # Try using process loopback
-    audio_data = _record_with_loopback(pid, duration)
-    
-    if audio_data is None:
-        # If PID is 0, try fallback for system recording
-        if pid == 0:
-            try:
-                audio_data = record_audio(duration)
-            except Exception:
-                return False
-        else:
-            return False
-    
-    # Save to WAV file
-    try:
-        audio_data.save(filename)
-        return True
-    except Exception:
-        return False
+    # Use unified recording with PID as target
+    result = unified_record(duration, target=pid, output_file=filename)
+    return result if isinstance(result, bool) else False
 
 
 def list_recordable_processes() -> List[Dict[str, Any]]:
@@ -363,10 +318,13 @@ def list_recordable_processes() -> List[Dict[str, Any]]:
     Note:
         Requires process_loopback_queue module for process-specific recording.
     """
+    # Import here to avoid circular dependency
+    from .unified_recording import _import_process_loopback
+    
     try:
         loopback = _import_process_loopback()
         if loopback is None:
-            raise ImportError("process_loopback_v2 not available")
+            raise ImportError("process_loopback_queue not available")
         
         processes = loopback.list_audio_processes()
         return [
@@ -485,6 +443,5 @@ def record_with_callback(duration: float, callback) -> None:
         ...     audio.save("callback_recording.wav")
         >>> pywac.record_with_callback(5, on_complete)
     """
-    from .recorder import AsyncAudioRecorder
-    recorder = AsyncAudioRecorder(callback=callback)
-    recorder.start_async(duration)
+    # Use unified recording with callback
+    unified_record(duration, target=None, on_complete=callback)
