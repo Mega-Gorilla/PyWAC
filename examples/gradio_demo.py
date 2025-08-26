@@ -1,31 +1,106 @@
+# -*- coding: utf-8 -*-
 """
-PyWAC 完全機能デモアプリケーション（リファクタリング版）
-すべてのPyWAC機能を試せる統合デモ
+PyWAC Complete Feature Demo Application (Refactored Version)
+Integrated demo to try all PyWAC features
 """
+
+import sys
+import os
+# Add parent directory to path to find process_loopback_queue module
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
 
 import gradio as gr
 import pywac
 import numpy as np
 import wave
 import time
-import os
 from datetime import datetime
 from pathlib import Path
 import threading
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optional, List, Dict, Any, Tuple, Deque
+from collections import deque
 from pywac.audio_data import AudioData
 
 # Pre-import process_loopback_queue to avoid threading issues
+process_loopback_queue = None
 try:
     import process_loopback_queue
+    # Test if module works properly
     test_capture = process_loopback_queue.QueueBasedProcessCapture()
     del test_capture
-except ImportError:
-    pass
+    print("process_loopback_queue module loaded successfully")
+except ImportError as e:
+    print(f"Warning: process_loopback_queue module not available: {e}")
+    print("Real-time recording will not be available")
+    process_loopback_queue = None
+
+
+class CircularBuffer:
+    """循環バッファでリアルタイム録音を管理"""
+    
+    def __init__(self, max_duration_seconds: float = 10.0, sample_rate: int = 48000):
+        self.max_duration = max_duration_seconds
+        self.sample_rate = sample_rate
+        self.channels = 2
+        self.max_samples = int(max_duration_seconds * sample_rate)
+        self.buffer: Deque[np.ndarray] = deque()
+        self.total_samples = 0
+        self.lock = threading.Lock()
+        self.current_rms = 0.0
+        self.current_peak = 0.0
+        
+    def add_chunk(self, audio_chunk: np.ndarray):
+        """チャンクを追加し、古いデータを削除"""
+        with self.lock:
+            self.buffer.append(audio_chunk)
+            self.total_samples += len(audio_chunk)
+            
+            while self.total_samples > self.max_samples:
+                if self.buffer:
+                    removed = self.buffer.popleft()
+                    self.total_samples -= len(removed)
+            
+            if len(audio_chunk) > 0:
+                chunk_float = audio_chunk.astype(np.float32) / 32768.0
+                self.current_rms = np.sqrt(np.mean(chunk_float**2))
+                self.current_peak = np.abs(chunk_float).max()
+    
+    def get_buffer_audio(self, duration_seconds: Optional[float] = None) -> AudioData:
+        """バッファから音声を取得"""
+        with self.lock:
+            if not self.buffer:
+                return AudioData.create_empty(self.sample_rate, self.channels)
+            
+            all_audio = np.concatenate(list(self.buffer))
+            
+            if duration_seconds is not None:
+                samples_needed = int(duration_seconds * self.sample_rate)
+                if len(all_audio) > samples_needed:
+                    all_audio = all_audio[-samples_needed:]
+            
+            return AudioData.from_interleaved(
+                all_audio.flatten(),
+                self.sample_rate,
+                self.channels
+            )
+    
+    def get_metrics(self) -> dict:
+        """バッファのメトリクスを取得"""
+        with self.lock:
+            buffer_duration = self.total_samples / self.sample_rate if self.sample_rate > 0 else 0
+            return {
+                'buffer_duration': buffer_duration,
+                'max_duration': self.max_duration,
+                'buffer_usage_percent': (buffer_duration / self.max_duration * 100) if self.max_duration > 0 else 0,
+                'current_rms_db': 20 * np.log10(self.current_rms + 1e-10),
+                'current_peak_db': 20 * np.log10(self.current_peak + 1e-10)
+            }
 
 
 class RecordingManager:
-    """録音機能を管理するクラス"""
+    """Class to manage recording functionality"""
     
     def __init__(self, recordings_dir: Path):
         self.recordings_dir = recordings_dir
@@ -39,9 +114,16 @@ class RecordingManager:
         self.monitoring_active = False
         self.recording_start_time = None
         self.recording_duration = 0
+        
+        # リアルタイム録音用
+        self.realtime_mode = False
+        self.circular_buffer = None
+        self.realtime_capture = None
+        self.polling_thread = None
+        self.saved_clips = []
     
     def start_system_recording(self, duration: int) -> Tuple[str, None]:
-        """システム全体の音声を録音"""
+        """Record system-wide audio"""
         if self.is_recording:
             return "すでに録音中です", None
         
@@ -61,7 +143,7 @@ class RecordingManager:
         return f"システム音声の録音を開始しました（{duration}秒間）", None
     
     def start_process_recording(self, target_process: str, duration: int) -> Tuple[str, None]:
-        """特定プロセスの音声を録音"""
+        """Record audio from specific process"""
         if self.is_recording:
             return "すでに録音中です", None
         
@@ -71,7 +153,7 @@ class RecordingManager:
         self._reset_recording_state()
         self.recording_duration = duration
         
-        # プロセス名とPIDを抽出
+        # Extract process name and PID
         parts = target_process.split(" (PID: ")
         process_name = parts[0]
         pid = int(parts[1].rstrip(")")) if len(parts) > 1 else 0
@@ -88,118 +170,236 @@ class RecordingManager:
         
         return f"{process_name}の録音を開始しました（{duration}秒間）", None
     
-    def start_callback_recording(self, duration: int, monitor: bool) -> Tuple[str, None, str]:
-        """コールバック録音（モニタリング付き）"""
+    def start_realtime_recording(self, duration: int, process_id: int = 0) -> Tuple[str, None, str]:
+        """Start real-time recording with circular buffer (duration as buffer size)"""
         if self.is_recording:
             return "すでに録音中です", None, ""
         
-        self._reset_recording_state()
-        self.recording_duration = duration
-        self.monitoring_active = monitor
+        # Check if process_loopback_queue module is available
+        if process_loopback_queue is None:
+            return "リアルタイム録音機能は利用できません（モジュールが見つかりません）", None, ""
         
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = str(self.recordings_dir / f"callback_{timestamp}.wav")
+        self.realtime_mode = True
+        self.is_recording = True
+        self.recording_status = "リアルタイム録音中"
+        self.recording_start_time = time.time()
+        self.recording_duration = duration  # Use duration as buffer size
         
-        self.recording_thread = threading.Thread(
-            target=self._record_with_callback,
-            args=(filename, duration),
-            daemon=True
-        )
-        self.recording_thread.start()
+        # Create circular buffer with duration as max size
+        self.circular_buffer = CircularBuffer(max_duration_seconds=duration)
         
-        status = f"コールバック録音を開始しました（{duration}秒間）"
-        if monitor:
-            status += "\nモニタリング中..."
+        try:
+            # Create capture instance
+            self.realtime_capture = process_loopback_queue.QueueBasedProcessCapture()
+            chunk_frames = int(48000 * 0.05)  # 50ms chunks
+            self.realtime_capture.set_chunk_size(chunk_frames)
+            
+            # Start capture
+            if self.realtime_capture.start(process_id):
+                # Start polling thread
+                self.polling_thread = threading.Thread(target=self._realtime_polling_loop, daemon=True)
+                self.polling_thread.start()
+                return f"🔴 リアルタイム録音開始（最大{duration}秒保持）", None, ""
+            else:
+                self.is_recording = False
+                self.realtime_mode = False
+                return "録音開始に失敗しました", None, ""
+        except Exception as e:
+            self.is_recording = False
+            self.realtime_mode = False
+            return f"録音開始エラー: {str(e)}", None, ""
+    
+    def stop_realtime_recording(self) -> str:
+        """リアルタイム録音を停止"""
+        if not self.realtime_mode:
+            return "リアルタイム録音中ではありません"
         
-        return status, None, ""
+        self.is_recording = False
+        self.realtime_mode = False
+        
+        if self.realtime_capture:
+            self.realtime_capture.stop()
+            self.realtime_capture = None
+        
+        return "⏹️ リアルタイム録音停止"
+    
+    def _realtime_polling_loop(self):
+        """リアルタイム録音のポーリングループ"""
+        while self.is_recording and self.realtime_mode:
+            try:
+                if self.realtime_capture and process_loopback_queue:
+                    chunks = self.realtime_capture.pop_chunks(max_chunks=10, timeout_ms=10)
+                    
+                    for chunk in chunks:
+                        if chunk and not chunk.get('silent', False):
+                            audio_data = AudioData.from_interleaved(
+                                chunk['data'].flatten(),
+                                sample_rate=48000,
+                                channels=2
+                            )
+                            audio_int16 = audio_data.to_int16()
+                            self.circular_buffer.add_chunk(audio_int16.samples)
+                
+                time.sleep(0.01)
+            except Exception as e:
+                print(f"Error in polling loop: {e}")
+                self.recording_status = f"ポーリングエラー: {str(e)}"
+                break
+    
+    def save_realtime_clip(self, duration_seconds: Optional[float] = None) -> Tuple[str, Optional[str]]:
+        """リアルタイムバッファから音声を保存（duration未指定なら全バッファ）"""
+        if not self.circular_buffer:
+            return "バッファがありません", None
+        
+        try:
+            # If duration not specified, use all available buffer
+            if duration_seconds is None:
+                duration_seconds = self.recording_duration
+            
+            audio_data = self.circular_buffer.get_buffer_audio(duration_seconds)
+            
+            if audio_data.num_frames == 0:
+                return "バッファが空です", None
+            
+            actual_duration = audio_data.duration
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = str(self.recordings_dir / f"realtime_clip_{actual_duration:.1f}s_{timestamp}.wav")
+            
+            audio_data.save(filename)
+            self.saved_clips.append(filename)
+            
+            return f"✅ {actual_duration:.1f}秒のクリップを保存しました", filename
+        except Exception as e:
+            return f"保存エラー: {str(e)}", None
+    
+    def get_realtime_status_html(self) -> str:
+        """リアルタイム録音のステータスHTML"""
+        if not self.realtime_mode or not self.circular_buffer:
+            return ""
+        
+        metrics = self.circular_buffer.get_metrics()
+        rms_percent = min(100, max(0, (metrics['current_rms_db'] + 60) / 60 * 100))
+        peak_percent = min(100, max(0, (metrics['current_peak_db'] + 60) / 60 * 100))
+        
+        return f"""
+        <div style='padding: 10px; background: rgba(76, 175, 80, 0.1); border-radius: 8px;'>
+            <div style='margin-bottom: 10px;'>
+                <span style='color: #f44336; font-size: 16px;'>🔴</span>
+                <span style='color: #4caf50; font-weight: bold;'>リアルタイム録音中</span>
+            </div>
+            
+            <div style='margin-bottom: 10px;'>
+                <div style='color: #888; font-size: 11px;'>バッファ: {metrics['buffer_duration']:.1f}s / {metrics['max_duration']:.0f}s</div>
+                <div style='width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px;'>
+                    <div style='width: {metrics['buffer_usage_percent']:.0f}%; height: 100%; background: #4caf50;'></div>
+                </div>
+            </div>
+            
+            <div style='display: grid; grid-template-columns: 1fr 1fr; gap: 10px;'>
+                <div>
+                    <div style='color: #888; font-size: 11px;'>RMS: {metrics['current_rms_db']:.1f} dB</div>
+                    <div style='width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px;'>
+                        <div style='width: {rms_percent:.0f}%; height: 100%; background: #4caf50;'></div>
+                    </div>
+                </div>
+                <div>
+                    <div style='color: #888; font-size: 11px;'>Peak: {metrics['current_peak_db']:.1f} dB</div>
+                    <div style='width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px;'>
+                        <div style='width: {peak_percent:.0f}%; height: 100%; background: #8bc34a;'></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        """
     
     def _reset_recording_state(self):
-        """録音状態をリセット"""
+        """Reset recording state"""
         self.is_recording = True
-        self.audio_buffer = []  # 常にリストで初期化
+        self.audio_buffer = []  # Always initialize as list
         self.callback_messages = []
         self.recording_start_time = time.time()
         self.recording_status = "録音中"
+        self.recording_filename = None
     
     def _record_system_audio(self, filename: str, duration: int):
-        """システム音声を録音（バックグラウンド）"""
+        """Record system audio (background)"""
         try:
             audio_data = pywac.record_audio(duration)
             
             if audio_data and audio_data.num_frames > 0:
                 audio_data.save(filename)
-                # WAVファイルから読み込んで正しいフォーマットを保証
+                # Load from WAV file to ensure correct format
                 self._load_wav_to_buffer(filename)
-                self.recording_status = f"録音成功: {Path(filename).name}"
+                self.recording_status = f"Recording successful: {Path(filename).name}"
                 self.recording_filename = filename
             else:
-                self.recording_status = "録音データが取得できませんでした"
+                self.recording_status = "Could not retrieve recording data"
         except Exception as e:
-            self.recording_status = f"録音エラー: {str(e)}"
+            self.recording_status = f"Recording error: {str(e)}"
         finally:
             self.is_recording = False
     
     def _record_process_audio(self, process_name: str, pid: int, filename: str, duration: int):
-        """プロセス音声を録音（バックグラウンド）"""
+        """Record process audio (background)"""
         try:
             success = (pywac.record_process_id(pid, filename, duration) if pid > 0 
                       else pywac.record_process(process_name, filename, duration))
             
             if success:
-                self.recording_status = f"録音成功: {Path(filename).name}"
+                self.recording_status = f"Recording successful: {Path(filename).name}"
                 self.recording_filename = filename
                 self._load_wav_to_buffer(filename)
             else:
-                self.recording_status = f"録音失敗: {process_name}"
+                self.recording_status = f"Recording failed: {process_name}"
         except Exception as e:
-            self.recording_status = f"録音エラー: {str(e)}"
+            self.recording_status = f"Recording error: {str(e)}"
         finally:
             self.is_recording = False
     
     def _record_with_callback(self, filename: str, duration: int):
-        """コールバック付き録音（バックグラウンド）"""
+        """Recording with callback (background)"""
         try:
             pywac.record_with_callback(duration, self._audio_callback)
-            time.sleep(duration + 0.5)  # コールバック完了まで待機
+            time.sleep(duration + 0.5)  # Wait for callback completion
             
-            # AudioDataオブジェクトのチェック
+            # Check AudioData object
             if isinstance(self.audio_buffer, AudioData) and self.audio_buffer.num_frames > 0:
                 self.audio_buffer.save(filename)
-                # WAVファイルから読み込んで正しいフォーマットを保証
+                # Load from WAV file to ensure correct format
                 self._load_wav_to_buffer(filename)
-                self.recording_status = f"録音成功: {Path(filename).name}"
+                self.recording_status = f"Recording successful: {Path(filename).name}"
                 self.recording_filename = filename
             else:
-                self.recording_status = "録音失敗: データが取得できませんでした"
+                self.recording_status = "Recording failed: Could not retrieve data"
         except Exception as e:
-            self.recording_status = f"録音エラー: {str(e)}"
+            self.recording_status = f"Recording error: {str(e)}"
         finally:
             self.is_recording = False
             self.monitoring_active = False
     
     def _audio_callback(self, audio_data):
-        """録音完了時のコールバック処理"""
-        # AudioDataオブジェクトとして処理
+        """Callback processing when recording is complete"""
+        # Process as AudioData object
         if isinstance(audio_data, AudioData) and audio_data.num_frames > 0:
             self._process_callback_data(audio_data)
         else:
-            self.callback_messages.append("録音データが取得できませんでした")
+            self.callback_messages.append("Could not retrieve recording data")
     
     def _process_callback_data(self, audio_data: AudioData):
-        """コールバックデータを処理"""
+        """Process callback data"""
         self.audio_buffer = audio_data
         
         if self.monitoring_active:
-            # AudioDataから統計情報を取得
+            # Get statistics from AudioData
             stats = audio_data.get_statistics()
             
             self.callback_messages.append(
-                f"録音完了: {stats['num_frames']} フレーム, "
-                f"平均音量: {stats['rms_db']:.1f} dB, "
-                f"ピーク: {stats['peak_db']:.1f} dB"
+                f"Recording completed: {stats['num_frames']} frames, "
+                f"Average volume: {stats['rms_db']:.1f} dB, "
+                f"Peak: {stats['peak_db']:.1f} dB"
             )
             
-            # 詳細な解析
+            # Detailed analysis
             audio_float = audio_data.to_float32()
             samples = audio_float.samples
             chunk_size = len(samples) // 10
@@ -210,29 +410,29 @@ class RecordingManager:
                 chunk = samples[start:end]
                 chunk_rms = np.sqrt(np.mean(chunk ** 2))
                 chunk_db = 20 * np.log10(chunk_rms + 1e-10)
-                self.callback_messages.append(f"  セクション {i+1}/10: {chunk_db:.1f} dB")
+                self.callback_messages.append(f"  Section {i+1}/10: {chunk_db:.1f} dB")
     
     def _load_wav_to_buffer(self, filename: str):
-        """WAVファイルをバッファに読み込み"""
+        """Load WAV file into buffer"""
         if os.path.exists(filename):
-            # AudioDataのloadメソッドを使用
+            # Use AudioData's load method
             self.audio_buffer = AudioData.load(filename)
             self.sample_rate = self.audio_buffer.sample_rate
     
     def get_recording_result(self) -> Tuple[str, Optional[Tuple[int, np.ndarray]]]:
-        """録音結果を取得"""
+        """Get recording result"""
         if self.is_recording:
-            return "録音中です", None
+            return "Recording in progress", None
         
-        # AudioDataの場合
+        # For AudioData
         if isinstance(self.audio_buffer, AudioData):
             if self.audio_buffer.num_frames == 0:
                 return self.recording_status, None
             
-            # int16形式に変換してGradioに返す
+            # Convert to int16 format for Gradio
             audio_int16 = self.audio_buffer.to_int16()
             
-            # ステレオ形式を確保
+            # Ensure stereo format
             if audio_int16.channels == 1:
                 audio_output = np.column_stack((audio_int16.samples, audio_int16.samples))
             else:
@@ -240,18 +440,18 @@ class RecordingManager:
             
             return self.recording_status, (audio_int16.sample_rate, audio_output)
         
-        # 旧形式のデータ（NumPy配列）の場合
+        # For legacy format data (NumPy array)
         elif isinstance(self.audio_buffer, np.ndarray):
             if self.audio_buffer.size == 0:
                 return self.recording_status, None
             
-            # すでにint16の場合はそのまま使用
+            # Use as-is if already int16
             if self.audio_buffer.dtype == np.int16:
                 audio_output = self.audio_buffer
             else:
                 audio_output = self.audio_buffer.astype(np.int16)
             
-            # ステレオ形式に変換（必要な場合）
+            # Convert to stereo format (if needed)
             if len(audio_output.shape) == 1:
                 audio_output = np.column_stack((audio_output, audio_output))
             
@@ -260,9 +460,9 @@ class RecordingManager:
         return self.recording_status, None
     
     def get_recording_progress(self) -> str:
-        """録音進捗状況をHTML形式で取得"""
+        """Get recording progress in HTML format"""
         if not self.is_recording:
-            return self._create_status_html("⏸️ 待機中", "rgba(30, 30, 46, 0.5)", "#e0e0e0")
+            return self._create_status_html("⏸️ Waiting", "rgba(30, 30, 46, 0.5)", "#e0e0e0")
         
         if self.recording_start_time:
             elapsed = time.time() - self.recording_start_time
@@ -272,8 +472,8 @@ class RecordingManager:
             <div style='padding: 15px; background-color: rgba(76, 175, 80, 0.1); border-radius: 8px; border: 1px solid rgba(76, 175, 80, 0.3);'>
                 <div style='display: flex; align-items: center; gap: 10px; margin-bottom: 10px;'>
                     <span style='color: #4caf50; font-size: 20px; animation: pulse 1.5s infinite;'>🔴</span>
-                    <span style='color: #4caf50; font-weight: bold;'>録音中...</span>
-                    <span style='color: #e0e0e0;'>({elapsed:.1f}/{self.recording_duration}秒)</span>
+                    <span style='color: #4caf50; font-weight: bold;'>Recording...</span>
+                    <span style='color: #e0e0e0;'>({elapsed:.1f}/{self.recording_duration}s)</span>
                 </div>
                 <div style='width: 100%; height: 20px; background-color: rgba(255, 255, 255, 0.1); border-radius: 10px; overflow: hidden;'>
                     <div style='width: {progress:.0f}%; height: 100%; background: linear-gradient(90deg, #4caf50, #66bb6a); transition: width 0.3s ease;'></div>
@@ -288,39 +488,39 @@ class RecordingManager:
             </style>
             """
         
-        return self._create_status_html("🔴 録音準備中...", "rgba(76, 175, 80, 0.2)", "#4caf50")
+        return self._create_status_html("🔴 Preparing to record...", "rgba(76, 175, 80, 0.2)", "#4caf50")
     
     def get_monitoring_status(self) -> str:
-        """モニタリング状況を取得"""
+        """Get monitoring status"""
         if not self.monitoring_active and not self.callback_messages:
-            return "モニタリング停止中"
+            return "Monitoring stopped"
         
         if self.monitoring_active and not self.callback_messages:
-            return "録音中... (録音完了後に解析結果が表示されます)"
+            return "Recording... (Analysis results will be displayed after recording completes)"
         
         if self.callback_messages:
             return "\n".join(self.callback_messages[-15:])
         
-        return "待機中..."
+        return "Waiting..."
     
     @staticmethod
     def _create_status_html(text: str, bg_color: str, text_color: str) -> str:
-        """ステータスHTMLを生成"""
+        """Generate status HTML"""
         return f"""<div style='padding: 10px; background-color: {bg_color}; 
                    border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1); 
                    color: {text_color}; text-align: center;'>{text}</div>"""
 
 
 class SessionController:
-    """セッション管理機能を提供するクラス"""
+    """Class that provides session management functionality"""
     
     @staticmethod
     def get_sessions_table() -> str:
-        """HTMLテーブル形式でセッション一覧を表示"""
+        """Display session list in HTML table format"""
         try:
             sessions = pywac.list_audio_sessions()
             if not sessions:
-                return "<p style='color: gray; text-align: center;'>音声セッションが見つかりません</p>"
+                return "<p style='color: gray; text-align: center;'>No audio sessions found</p>"
             
             html = SessionController._generate_table_style()
             html += SessionController._generate_table_header()
@@ -335,7 +535,7 @@ class SessionController:
             
             return html
         except Exception as e:
-            return f"<p style='color: red;'>エラー: {str(e)}</p>"
+            return f"<p style='color: red;'>Error: {str(e)}</p>"
     
     @staticmethod
     def _generate_table_style() -> str:
@@ -454,7 +654,7 @@ class SessionController:
     
     @staticmethod
     def get_session_stats() -> str:
-        """セッション統計情報を表示"""
+        """Display session statistics"""
         try:
             sessions = pywac.list_audio_sessions()
             active_sessions = pywac.get_active_sessions()
@@ -466,55 +666,55 @@ class SessionController:
             
             return f"""
 <div style='background-color: rgba(30, 30, 46, 0.5); padding: 15px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1);'>
-    <div style='color: #e0e0e0; font-size: 16px; font-weight: 600; margin-bottom: 15px;'>📊 セッション統計</div>
+    <div style='color: #e0e0e0; font-size: 16px; font-weight: 600; margin-bottom: 15px;'>📊 Session Statistics</div>
     
     <div style='display: grid; gap: 10px;'>
         <div style='display: flex; justify-content: space-between; padding: 8px; background-color: rgba(255, 255, 255, 0.05); border-radius: 4px;'>
-            <span style='color: #b0b0b0;'>総セッション数:</span>
+            <span style='color: #b0b0b0;'>Total Sessions:</span>
             <span style='color: #ffffff; font-weight: 600;'>{total}</span>
         </div>
         
         <div style='display: flex; justify-content: space-between; padding: 8px; background-color: rgba(76, 175, 80, 0.15); border-radius: 4px;'>
-            <span style='color: #b0b0b0;'>🔊 アクティブ:</span>
+            <span style='color: #b0b0b0;'>🔊 Active:</span>
             <span style='color: #4caf50; font-weight: 600;'>{active}</span>
         </div>
         
         <div style='display: flex; justify-content: space-between; padding: 8px; background-color: rgba(255, 255, 255, 0.05); border-radius: 4px;'>
-            <span style='color: #b0b0b0;'>⏸️ 非アクティブ:</span>
+            <span style='color: #b0b0b0;'>⏸️ Inactive:</span>
             <span style='color: #ffffff; font-weight: 600;'>{inactive}</span>
         </div>
         
         <div style='display: flex; justify-content: space-between; padding: 8px; background-color: rgba(255, 152, 0, 0.15); border-radius: 4px;'>
-            <span style='color: #b0b0b0;'>🔇 ミュート中:</span>
+            <span style='color: #b0b0b0;'>🔇 Muted:</span>
             <span style='color: #ff9800; font-weight: 600;'>{muted}</span>
         </div>
     </div>
     
     <div style='margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.1);'>
         <div style='color: #808080; font-size: 12px; text-align: center;'>
-            最終更新: {datetime.now().strftime("%H:%M:%S")}
+            Last Updated: {datetime.now().strftime("%H:%M:%S")}
         </div>
     </div>
 </div>
             """
         except Exception as e:
-            return f"<div style='color: #ff5252;'>エラー: {str(e)}</div>"
+            return f"<div style='color: #ff5252;'>Error: {str(e)}</div>"
 
 
 class PyWACDemoApp:
-    """PyWAC統合デモアプリケーション"""
+    """PyWAC Integrated Demo Application"""
     
     def __init__(self):
-        # recordingsディレクトリを作成
+        # Create recordings directory
         self.recordings_dir = Path(__file__).parent / "recordings"
         self.recordings_dir.mkdir(parents=True, exist_ok=True)
         
-        # マネージャーの初期化
+        # Initialize managers
         self.recording_manager = RecordingManager(self.recordings_dir)
         self.session_controller = SessionController()
     
     def get_audio_sessions(self) -> List[str]:
-        """利用可能な音声セッションのリストを取得"""
+        """Get list of available audio sessions"""
         try:
             sessions = pywac.list_audio_sessions()
             if not sessions:
@@ -527,21 +727,32 @@ class PyWACDemoApp:
                 for s in sessions
             ]
         except Exception as e:
-            return [f"エラー: {str(e)}"]
+            return [f"Error: {str(e)}"]
     
     def get_recordable_processes(self) -> List[str]:
-        """録音可能なプロセス一覧を取得"""
+        """Get list of recordable processes (active sessions only)"""
         try:
-            processes = pywac.list_recordable_processes()
-            if not processes:
-                return ["録音可能なプロセスが見つかりません"]
+            # Get only active audio sessions
+            sessions = pywac.list_audio_sessions(active_only=True)
+            if not sessions:
+                return []  # Return empty list instead of error message
             
-            return [f"{p.get('name', 'Unknown')} (PID: {p.get('pid', 0)})" for p in processes]
+            # Create unique process list from active sessions
+            active_processes = {}
+            for session in sessions:
+                pid = session.get('process_id', 0)
+                if pid not in active_processes:
+                    active_processes[pid] = {
+                        'name': session.get('process_name', 'Unknown'),
+                        'pid': pid
+                    }
+            
+            return [f"{p['name']} (PID: {p['pid']})" for p in active_processes.values()]
         except Exception as e:
-            return [f"エラー: {str(e)}"]
+            return []  # Return empty list on error
     
     def list_recordings(self) -> List[str]:
-        """録音ファイル一覧を取得（新しい順）"""
+        """Get list of recording files (newest first)"""
         try:
             recordings = []
             wav_files = list(self.recordings_dir.glob("*.wav"))
@@ -554,25 +765,25 @@ class PyWACDemoApp:
                 mtime = datetime.fromtimestamp(file.stat().st_mtime)
                 recordings.append(f"{file.name} ({size:.1f}KB) - {mtime.strftime('%Y-%m-%d %H:%M:%S')}")
             
-            return recordings if recordings else ["録音ファイルがありません"]
+            return recordings if recordings else ["No recording files"]
         except Exception as e:
-            return [f"エラー: {str(e)}"]
+            return [f"Error: {str(e)}"]
     
     def set_app_volume(self, target_app: str, volume: float) -> str:
-        """アプリケーションの音量を設定"""
+        """Set application volume"""
         if not target_app or "見つかりません" in target_app:
-            return "アプリケーションを選択してください"
+            return "Please select an application"
         
         try:
             app_name = target_app.split(" (PID:")[0]
             pywac.set_app_volume(app_name, volume / 100.0)
             return f"{app_name}の音量を{volume}%に設定しました"
         except Exception as e:
-            return f"音量設定エラー: {str(e)}"
+            return f"Volume setting error: {str(e)}"
 
 
 def create_interface():
-    """Gradioインターフェースを作成"""
+    """Create Gradio interface"""
     app = PyWACDemoApp()
     
     with gr.Blocks(title="PyWAC完全機能デモ", theme=gr.themes.Soft(primary_hue="green", neutral_hue="slate")) as demo:
@@ -614,9 +825,10 @@ def create_interface():
                     gr.Markdown("#### 📋 録音設定")
                     
                     recording_mode = gr.Radio(
-                        choices=["システム録音", "プロセス録音", "コールバック録音"],
+                        choices=["システム録音", "プロセス録音", "リアルタイム録音"],
                         value="システム録音",
-                        label="録音モード"
+                        label="録音モード",
+                        info="リアルタイム録音は循環バッファで常時録音し、過去N秒を保存できます"
                     )
                     
                     duration_slider = gr.Slider(
@@ -624,7 +836,8 @@ def create_interface():
                         maximum=60,
                         value=10,
                         step=1,
-                        label="録音時間（秒）"
+                        label="録音時間 / バッファサイズ（秒）",
+                        info="リアルタイム録音では循環バッファのサイズとして使用"
                     )
                     
                     with gr.Row():
@@ -632,15 +845,32 @@ def create_interface():
                         preset_10s = gr.Button("10秒", size="sm")
                         preset_30s = gr.Button("30秒", size="sm")
                     
-                    process_dropdown = gr.Dropdown(
-                        label="対象プロセス",
-                        choices=app.get_recordable_processes(),
-                        visible=False
-                    )
+                    with gr.Row(visible=False) as process_selection_row:
+                        process_dropdown = gr.Dropdown(
+                            label="🎯 対象プロセス",
+                            choices=app.get_recordable_processes(),
+                            info="現在オーディオを再生中のアプリケーションから選択",
+                            interactive=True,
+                            value=None,
+                            scale=4
+                        )
+                        refresh_process_btn = gr.Button("🔄", size="sm", scale=1)
                     
-                    enable_monitoring = gr.Checkbox(
-                        label="📊 リアルタイムモニタリング",
-                        value=False,
+                    # リアルタイム録音用コントロール
+                    with gr.Row(visible=False) as realtime_controls:
+                        save_clip_btn = gr.Button(
+                            "💾 バッファを保存",
+                            variant="secondary",
+                            scale=1
+                        )
+                        stop_realtime_btn = gr.Button(
+                            "⏹️ 連続録音停止",
+                            variant="stop",
+                            scale=1
+                        )
+                    
+                    realtime_status = gr.HTML(
+                        value="",
                         visible=False
                     )
                     
@@ -655,7 +885,7 @@ def create_interface():
                     )
                 
                 with gr.Column(scale=2):
-                    gr.Markdown("#### 🎵 録音結果")
+                    gr.Markdown("### 🎙️ 録音結果")
                     
                     audio_output = gr.Audio(
                         label="録音済みファイル",
@@ -663,16 +893,16 @@ def create_interface():
                     )
                     
                     monitoring_output = gr.Textbox(
-                        label="📊 モニタリング情報",
-                        lines=8,
+                        label="📊 ステータス情報",
+                        lines=4,
                         interactive=False,
-                        visible=False
+                        value="待機中..."
                     )
                     
                     with gr.Group():
                         gr.Markdown("#### 📁 録音履歴")
                         recordings_list = gr.Dropdown(
-                            label="過去の録音ファイル",
+                            label="Past Recording Files",
                             choices=app.list_recordings(),
                             interactive=True
                         )
@@ -685,7 +915,7 @@ def create_interface():
             with gr.Row():
                 with gr.Column():
                     volume_app_dropdown = gr.Dropdown(
-                        label="対象アプリケーション",
+                        label="Target Application",
                         choices=app.get_audio_sessions()
                     )
                     
@@ -710,32 +940,76 @@ def create_interface():
         
         def toggle_recording_mode(mode):
             """録音モードに応じて設定項目を表示/非表示"""
-            process_visible = (mode == "プロセス録音")
-            callback_visible = (mode == "コールバック録音")
+            process_visible = (mode == "プロセス録音") 
+            realtime_visible = (mode == "リアルタイム録音")
+            
+            # プロセス録音またはリアルタイム録音の場合、プロセス選択を表示
+            process_dropdown_visible = process_visible or realtime_visible
+            
+            # アクティブなプロセスリストを更新
+            if process_dropdown_visible:
+                process_choices = app.get_recordable_processes()
+                # 選択肢が空でない場合は最初のアイテムを選択、空の場合はNone
+                default_value = process_choices[0] if process_choices else None
+            else:
+                process_choices = []
+                default_value = None
+            
+            # 録音ボタンのテキストを動的に変更
+            if realtime_visible:
+                button_text = "🔴 連続録音開始"
+            else:
+                button_text = "🔴 録音開始"
+            
             return (
-                gr.update(visible=process_visible),
-                gr.update(visible=callback_visible),
-                gr.update(visible=callback_visible)
+                gr.update(visible=process_dropdown_visible),  # process_selection_row
+                gr.update(choices=process_choices, value=default_value),  # process_dropdown - reset value
+                gr.update(visible=realtime_visible),  # realtime_controls (Row containing both buttons)
+                gr.update(visible=realtime_visible),  # realtime_status
+                gr.update(value=button_text)  # record_btn - use value instead of label
             )
         
-        def start_recording(mode, duration, process, monitoring):
-            """録音を開始"""
+        def start_recording(mode, duration, process):
+            """録音を開始（統一されたインターフェース）"""
+            # Process IDを取得（プロセス録音とリアルタイム録音で共通）
+            pid = 0
+            if process and mode != "システム録音":
+                try:
+                    pid = int(process.split("PID: ")[1].rstrip(")"))
+                except:
+                    pid = 0
+            
+            # モードに応じた録音開始
             if mode == "システム録音":
                 status, _ = app.recording_manager.start_system_recording(duration)
             elif mode == "プロセス録音":
                 if not process:
-                    return "プロセスを選択してください", None, "", gr.Timer(active=False), gr.update()
+                    return "⚠️ プロセスを選択してください", None, "プロセスが選択されていません", gr.Timer(active=False), gr.update(), ""
                 status, _ = app.recording_manager.start_process_recording(process, duration)
-            elif mode == "コールバック録音":
-                status, _, _ = app.recording_manager.start_callback_recording(duration, monitoring)
+            elif mode == "リアルタイム録音":
+                # リアルタイム録音は録音時間をバッファサイズとして使用
+                # プロセスが選択されていない場合はシステム全体を録音
+                status, _, _ = app.recording_manager.start_realtime_recording(duration, pid)
             else:
-                return "不明なモード", None, "", gr.Timer(active=False), gr.update()
+                return "不明なモード", None, "", gr.Timer(active=False), gr.update(), ""
             
             status_html = app.recording_manager._create_status_html(f"🔴 {status}", "rgba(76, 175, 80, 0.2)", "#4caf50")
-            return status_html, None, "", gr.Timer(active=True), gr.update(choices=app.list_recordings())
+            return status_html, None, "", gr.Timer(active=True), gr.update(choices=app.list_recordings()), ""
         
         def update_recording_status():
             """録音ステータスを更新"""
+            # リアルタイム録音の場合は特別な処理
+            if app.recording_manager.realtime_mode:
+                realtime_html = app.recording_manager.get_realtime_status_html()
+                return (
+                    app.recording_manager.get_recording_progress(),
+                    None,
+                    "",
+                    gr.Timer(active=True),
+                    gr.update(),
+                    realtime_html
+                )
+            
             if not app.recording_manager.is_recording:
                 status, audio = app.recording_manager.get_recording_result()
                 monitoring_info = app.recording_manager.get_monitoring_status()
@@ -748,14 +1022,15 @@ def create_interface():
                     status_html = app.recording_manager.get_recording_progress()
                     recordings_update = gr.update()  # リストを更新しない
                 
-                return status_html, audio, monitoring_info, gr.Timer(active=False), recordings_update
+                return status_html, audio, monitoring_info, gr.Timer(active=False), recordings_update, ""
             else:
                 return (
                     app.recording_manager.get_recording_progress(),
                     None,
                     app.recording_manager.get_monitoring_status() if app.recording_manager.monitoring_active else "",
                     gr.Timer(active=True),
-                    gr.update()  # 録音中はリストを更新しない
+                    gr.update(),  # 録音中はリストを更新しない
+                    ""
                 )
         
         # イベントバインディング
@@ -778,7 +1053,19 @@ def create_interface():
         recording_mode.change(
             toggle_recording_mode,
             inputs=recording_mode,
-            outputs=[process_dropdown, enable_monitoring, monitoring_output]
+            outputs=[process_selection_row, process_dropdown, realtime_controls, realtime_status, record_btn]
+        )
+        
+        # プロセスリストのリフレッシュ
+        def refresh_process_list():
+            """プロセスリストを更新"""
+            choices = app.get_recordable_processes()
+            default_value = choices[0] if choices else None
+            return gr.update(choices=choices, value=default_value)
+        
+        refresh_process_btn.click(
+            refresh_process_list,
+            outputs=process_dropdown
         )
         
         preset_5s.click(lambda: 5, outputs=duration_slider)
@@ -787,13 +1074,62 @@ def create_interface():
         
         record_btn.click(
             start_recording,
-            inputs=[recording_mode, duration_slider, process_dropdown, enable_monitoring],
-            outputs=[record_status, audio_output, monitoring_output, recording_timer, recordings_list]
+            inputs=[recording_mode, duration_slider, process_dropdown],
+            outputs=[record_status, audio_output, monitoring_output, recording_timer, recordings_list, realtime_status]
+        )
+        
+        # リアルタイム録音の保存ボタンイベント
+        def save_realtime_buffer():
+            """リアルタイムバッファから音声を保存（全バッファ内容）"""
+            if not app.recording_manager.realtime_mode:
+                return "リアルタイム録音中ではありません", None, gr.update()
+            
+            msg, filepath = app.recording_manager.save_realtime_clip()  # No duration = save all
+            if filepath:
+                # Load the saved file for preview
+                try:
+                    with wave.open(filepath, 'rb') as wf:
+                        frames = wf.readframes(wf.getnframes())
+                        audio_data = np.frombuffer(frames, dtype=np.int16)
+                        sample_rate = wf.getframerate()
+                        nchannels = wf.getnchannels()
+                        
+                        if nchannels == 2:
+                            audio_data = audio_data.reshape(-1, 2)
+                        else:
+                            audio_data = np.column_stack((audio_data, audio_data))
+                        
+                        return msg, (sample_rate, audio_data), gr.update(choices=app.list_recordings())
+                except Exception as e:
+                    return f"ファイル読み込みエラー: {e}", None, gr.update()
+            
+            return msg, None, gr.update()
+        
+        save_clip_btn.click(
+            save_realtime_buffer,
+            outputs=[monitoring_output, audio_output, recordings_list]
+        )
+        
+        def stop_realtime_recording():
+            """リアルタイム録音を停止"""
+            status = app.recording_manager.stop_realtime_recording()
+            status_html = app.recording_manager._create_status_html(status, "rgba(30, 30, 46, 0.5)", "#e0e0e0")
+            return (
+                status_html,  # record_status
+                "",  # monitoring_output (clear)
+                "",  # realtime_status (clear)
+                gr.Timer(active=False),  # recording_timer
+                gr.update(value="🔴 連続録音開始")  # record_btn text
+            )
+        
+        stop_realtime_btn.click(
+            stop_realtime_recording,
+            outputs=[record_status, monitoring_output, realtime_status, recording_timer, record_btn]
         )
         
         recording_timer.tick(
             update_recording_status,
-            outputs=[record_status, audio_output, monitoring_output, recording_timer, recordings_list]
+            outputs=[record_status, audio_output, monitoring_output, recording_timer, recordings_list, realtime_status]
         )
         
         set_volume_btn.click(
@@ -803,8 +1139,8 @@ def create_interface():
         )
         
         def load_selected_recording(filename):
-            """選択した録音ファイルを読み込み"""
-            if not filename or "録音ファイルがありません" in filename:
+            """Load selected recording file"""
+            if not filename or "No recording files" in filename:
                 return None
             
             try:
@@ -825,7 +1161,7 @@ def create_interface():
                         return (sample_rate, audio_data)
                 return None
             except Exception as e:
-                print(f"録音ファイル読み込みエラー: {e}")
+                print(f"Recording file loading error: {e}")
                 return None
         
         refresh_recordings_btn.click(
@@ -843,7 +1179,7 @@ def create_interface():
 
 
 if __name__ == "__main__":
-    print("PyWAC 完全機能デモアプリケーションを起動中...")
+    print("Starting PyWAC Complete Feature Demo Application...")
     print("ブラウザで http://localhost:7860 を開いてください")
     
     demo = create_interface()

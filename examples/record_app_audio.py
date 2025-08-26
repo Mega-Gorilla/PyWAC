@@ -103,23 +103,33 @@ def record_with_progress(duration_seconds=5, output_file="recording.wav"):
 def select_process_interactive():
     """Let user select a process interactively from available processes"""
     try:
-        # Get recordable processes
-        processes = pywac.list_recordable_processes()
+        # Get all audio sessions and filter for active ones only
+        sessions = pywac.list_audio_sessions(active_only=True)
         
-        if not processes:
-            print("[WARNING] No recordable processes found")
+        if not sessions:
+            print("[WARNING] No active audio sessions found")
+            print("         Start playing audio in an application and try again")
             return None, None
         
-        print("\n[SELECT PROCESS TO RECORD]")
+        # Create unique process list from active sessions
+        active_processes = {}
+        for session in sessions:
+            pid = session['process_id']
+            if pid not in active_processes:
+                active_processes[pid] = {
+                    'name': session['process_name'],
+                    'pid': pid
+                }
+        
+        # Convert to list for indexing
+        processes = list(active_processes.values())
+        
+        print("\n[SELECT ACTIVE PROCESS TO RECORD]")
         print("-" * 40)
         print("  0. Record ALL system audio")
         
         for i, proc in enumerate(processes, 1):
-            # Check if process is active
-            sessions = pywac.list_audio_sessions()
-            is_active = any(s['process_id'] == proc['pid'] and s['is_active'] for s in sessions)
-            status = "[ACTIVE]" if is_active else "[INACTIVE]"
-            print(f"  {i}. {proc['name']} (PID: {proc['pid']}) {status}")
+            print(f"  {i}. {proc['name']} (PID: {proc['pid']}) [ACTIVE]")
         
         print("-" * 40)
         
