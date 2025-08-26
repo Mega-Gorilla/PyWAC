@@ -1,5 +1,7 @@
 # PyWAC録音API統合可能性分析
 
+> **注意**: API使用方法の明確化については[API_CLARIFICATION.md](API_CLARIFICATION.md)を参照してください。
+
 ## 現在の実装状況
 
 ### 1. システム録音 (`record_audio`)

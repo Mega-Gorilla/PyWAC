@@ -58,22 +58,34 @@ powershell -Command ".\.venv\Scripts\Activate.ps1; python examples\record_app_au
 
 ### Current Modules
 - `pywac._pywac_native` - Main module with audio session control and system-wide loopback
-- `process_loopback_v2` - **WORKING** Process Loopback API implementation with ActivateAudioInterfaceAsync
+- `process_loopback_queue` - **WORKING** Queue-based Process Loopback API implementation
+  - Event-driven audio capture with ActivateAudioInterfaceAsync
   - Successfully tested with Spotify and Firefox
   - Captures process-specific audio without mixing
+  - Non-destructive queue-based streaming
 
 ### Python API Design
 ```python
-import process_loopback_v2 as loopback
+import process_loopback_queue as loopback
 
-# List processes
-processes = loopback.list_audio_processes()
-# Returns: [{'pid': 1234, 'name': 'Chrome.exe'}, ...]
+# List processes (via pywac API)
+import pywac
+processes = pywac.list_audio_sessions(active_only=True)
+# Returns: [{'process_id': 1234, 'process_name': 'Chrome.exe', ...}, ...]
 
-# Capture audio
-capture = loopback.ProcessCapture()
-capture.start(pid=1234)  # or pid=0 for all system audio
-audio_data = capture.get_buffer()  # Returns numpy array
+# Stream audio with queue-based capture
+capture = loopback.QueueBasedProcessCapture()
+capture.set_chunk_size(2400)  # 50ms chunks at 48kHz
+capture.start(1234)  # Process ID, or 0 for all system audio
+
+# Poll for chunks
+while capture.is_capturing():
+    chunks = capture.pop_chunks(max_chunks=10, timeout_ms=10)
+    for chunk in chunks:
+        if not chunk['silent']:
+            audio_data = chunk['data']  # NumPy array
+            # Process audio...
+            
 capture.stop()
 ```
 
@@ -88,11 +100,12 @@ capture.stop()
 4. Audio device configuration issues
 
 ### Issue: No audio captured
-**Symptoms**: `get_buffer()` returns empty array
+**Symptoms**: `pop_chunks()` returns empty list or silent chunks only
 **Solutions**:
 1. Ensure audio is playing in target process
 2. Check Windows audio mixer settings
 3. Verify process has audio sessions active
+4. Check chunk['silent'] flag - may indicate no audio activity
 
 ## Technical Constraints
 

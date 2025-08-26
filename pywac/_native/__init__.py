@@ -1,6 +1,10 @@
 """
-Native extension wrapper for PyPAC.
+Native extension wrapper for PyWAC.
 This module loads the compiled C++ extensions.
+
+Note: The internal module name 'pypac' is kept for backward compatibility.
+The project was renamed from PyPAC to PyWAC but the compiled extension 
+retains the original name to avoid breaking existing builds.
 """
 
 import os

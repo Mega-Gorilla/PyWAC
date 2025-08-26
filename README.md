@@ -288,7 +288,6 @@ for session in sessions:
         
         # 直接ボリューム制御
         enumerator.set_session_volume(session.process_id, 0.5)
-        enumerator.set_session_mute(session.process_id, False)
 
 # SimpleLoopback による低レベル録音
 loopback = native.SimpleLoopback()

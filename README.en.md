@@ -288,7 +288,6 @@ for session in sessions:
         
         # Direct volume control
         enumerator.set_session_volume(session.process_id, 0.5)
-        enumerator.set_session_mute(session.process_id, False)
 
 # Low-level recording via SimpleLoopback
 loopback = native.SimpleLoopback()
