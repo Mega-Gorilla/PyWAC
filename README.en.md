@@ -1,4 +1,4 @@
-# PyWAC - Python Process Audio Capture for Windows
+# 🎵 PyWAC - Python Windows Audio Control
 
 <div align="center">
 
