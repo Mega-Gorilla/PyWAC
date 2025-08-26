@@ -172,8 +172,9 @@ Open your browser and navigate to `http://localhost:7860`.
 Three recording modes available:
 - **System Recording**: Capture all system audio
 - **Process Recording**: Record specific app audio only (exclude Discord, etc.)
-- **Callback Recording**: Record with real-time monitoring
+- **Real-time Recording**: Continuous recording with circular buffer (save past N seconds)
 - Duration settings (1-60 seconds) with preset buttons (5s/10s/30s)
+- Stop button provided for continuous recording mode
 
 ##### 📈 Real-time Monitoring
 - View audio levels during recording
@@ -185,10 +186,6 @@ Three recording modes available:
 - One-click playback
 - Display file size and recording time
 
-##### 🎨 Modern UI
-- Dark theme support
-- Three organized tabs (Session Management/Recording/Volume Control)
-- Responsive design
 
 ### Sample Scripts
 
