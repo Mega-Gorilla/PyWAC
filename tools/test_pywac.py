@@ -1,11 +1,11 @@
-"""Quick test for PyWAC v0.4.1 modules"""
+"""Quick test for PyWAC v0.4.2 modules"""
 import sys
 import os
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-print("Testing PyWAC v0.4.1 modules...")
+print("Testing PyWAC v0.4.2 modules...")
 print("=" * 60)
 
 def test_session_module():
@@ -65,16 +65,17 @@ def test_queue_module():
         print(f"[ERROR] Error: {e}")
         return False
 
-def test_streaming():
-    """Test streaming interface"""
-    print("\n[Testing Streaming Interface]")
+def test_unified_recording():
+    """Test unified recording interface"""
+    print("\n[Testing Unified Recording Interface (v0.4.2)]")
     try:
-        from pywac.queue_streaming import QueueBasedStreamingCapture
-        print("[OK] QueueBasedStreamingCapture imported")
+        from pywac.unified_recording import UnifiedRecorder, record
+        print("[OK] UnifiedRecorder imported")
+        print("[OK] record function imported")
         
-        # Just test import and creation
-        # Don't actually capture
-        print("  Streaming interface available")
+        # Test that we can create a recorder
+        recorder = UnifiedRecorder()
+        print("[OK] UnifiedRecorder instance created")
         
         return True
     except ImportError as e:
@@ -91,7 +92,7 @@ def main():
     # Test each component
     results.append(("Session Management", test_session_module()))
     results.append(("Queue Module", test_queue_module()))
-    results.append(("Streaming Interface", test_streaming()))
+    results.append(("Unified Recording", test_unified_recording()))
     
     # Summary
     print("\n" + "=" * 60)
@@ -107,7 +108,7 @@ def main():
     
     print("\n" + "=" * 60)
     if all_passed:
-        print("[SUCCESS] All tests passed! PyWAC v0.4.1 is working correctly.")
+        print("[SUCCESS] All tests passed! PyWAC v0.4.2 is working correctly.")
     else:
         print("[FAILED] Some tests failed. Check the output above.")
     

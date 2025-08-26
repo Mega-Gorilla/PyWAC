@@ -72,10 +72,15 @@ def check_module_files():
     modules_found = []
     modules_missing = []
     
-    # Expected modules for v0.4.1
+    # Expected modules for v0.4.2
     expected_modules = {
-        'process_loopback_queue': 'Process audio capture (v0.4.1)',
-        '_pywac_native': 'Session management'
+        'process_loopback_queue': 'Process audio capture (v0.4.1+)',
+    }
+    
+    # Optional modules (not required but checked if present)
+    optional_modules = {
+        '_pywac_native': 'Session management (legacy)',
+        'pypac': 'Native extension (in pywac/_native/)'
     }
     
     # Look for .pyd files
@@ -84,6 +89,7 @@ def check_module_files():
     # Also check pywac subdirectory
     pyd_files.extend(glob.glob(os.path.join(parent_path, 'pywac', '*.pyd')))
     
+    # Check required modules
     for module_name, description in expected_modules.items():
         found = False
         for pyd in pyd_files:
@@ -98,6 +104,22 @@ def check_module_files():
         if not found:
             print(f"[MISSING] {module_name} - {description}")
             modules_missing.append(module_name)
+    
+    # Check optional modules (just report if present)
+    for module_name, description in optional_modules.items():
+        # Check in _native folder for pypac.pyd
+        if module_name == 'pypac':
+            pypac_path = os.path.join(parent_path, 'pywac', '_native', 'pypac.pyd')
+            if os.path.exists(pypac_path):
+                size = os.path.getsize(pypac_path)
+                print(f"[OK] pypac.pyd in _native ({size:,} bytes) - {description}")
+        else:
+            for pyd in pyd_files:
+                basename = os.path.basename(pyd)
+                if module_name in basename:
+                    size = os.path.getsize(pyd)
+                    print(f"[INFO] {basename} ({size:,} bytes) - {description}")
+                    break
     
     if modules_missing:
         print("\nTo build missing modules:")
