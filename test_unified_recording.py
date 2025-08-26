@@ -7,7 +7,7 @@ import time
 sys.path.insert(0, os.path.dirname(__file__))
 
 import pywac
-from pywac.unified_recording import record, Recorder, capture_system_audio, capture_app_audio
+from pywac.unified_recording import record, UnifiedRecorder, capture_system_audio, capture_app_audio
 
 def test_unified_api():
     """Test the new unified recording API"""
@@ -87,15 +87,15 @@ def test_unified_api():
 
 
 def test_recorder_class():
-    """Test the Recorder class interface"""
+    """Test the UnifiedRecorder class interface"""
     
-    print("\n\nTesting Recorder Class Interface")
+    print("\n\nTesting UnifiedRecorder Class Interface")
     print("=" * 60)
     
     # Test 1: System recorder
-    print("\n1. Testing system Recorder...")
+    print("\n1. Testing system UnifiedRecorder...")
     try:
-        recorder = Recorder(target=None)
+        recorder = UnifiedRecorder(target=None)
         if recorder.is_available():
             audio = recorder.record(0.5)
             if audio and audio.num_frames > 0:
@@ -108,12 +108,12 @@ def test_recorder_class():
         print(f"   [ERROR] {e}")
     
     # Test 2: Process recorder by name
-    print("\n2. Testing process Recorder...")
+    print("\n2. Testing process UnifiedRecorder...")
     sessions = pywac.list_audio_sessions(active_only=True)
     if sessions:
         process_name = sessions[0]['process_name']
         try:
-            recorder = Recorder(target=process_name)
+            recorder = UnifiedRecorder(target=process_name)
             if recorder.is_available():
                 success = recorder.record_to_file(0.5, "test_recorder.wav")
                 if success and os.path.exists("test_recorder.wav"):
@@ -130,7 +130,7 @@ def test_recorder_class():
         print("   [SKIP] No active sessions")
     
     # Test 3: Async recording
-    print("\n3. Testing async Recorder...")
+    print("\n3. Testing async UnifiedRecorder...")
     async_results = []
     
     def handle_async(audio):
@@ -138,7 +138,7 @@ def test_recorder_class():
         print(f"   [ASYNC] Got {audio.duration:.1f}s")
     
     try:
-        recorder = Recorder()
+        recorder = UnifiedRecorder()
         recorder.record_async(0.5, handle_async)
         print("   [OK] Async started")
         time.sleep(1.0)

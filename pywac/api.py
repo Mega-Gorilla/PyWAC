@@ -6,11 +6,11 @@ Provides easy-to-use functions for common audio tasks.
 import os
 import sys
 import numpy as np
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Callable
 from .sessions import SessionManager
 from .recorder import AudioRecorder
 from .audio_data import AudioData
-from .unified_recording import record as unified_record, Recorder
+from .unified_recording import record as unified_record, UnifiedRecorder
 
 
 def _import_process_loopback():
@@ -429,7 +429,7 @@ def adjust_volume(app_name: str, delta: float) -> Optional[float]:
     return None
 
 
-def record_with_callback(duration: float, callback) -> None:
+def record_with_callback(duration: float, callback: Callable[[AudioData], None]) -> None:
     """
     Record audio asynchronously with a callback.
     

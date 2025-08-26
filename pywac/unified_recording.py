@@ -223,7 +223,7 @@ def record(
     return audio_data
 
 
-class Recorder:
+class UnifiedRecorder:
     """
     Clean class-based recording interface.
     Provides an intuitive API for all recording modes.
@@ -304,3 +304,7 @@ def capture_app_audio(app_name: str, duration: float, **kwargs) -> AudioData:
 def capture_process_audio(pid: int, duration: float, **kwargs) -> AudioData:
     """Capture audio from a specific process by PID."""
     return record(duration, target=pid, **kwargs)
+
+
+# Backward compatibility alias
+Recorder = UnifiedRecorder
