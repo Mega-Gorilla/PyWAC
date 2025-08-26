@@ -15,12 +15,19 @@ pypac/
 │
 ├── docs/                     # Technical documentation
 │   ├── README.md             # Documentation index
-│   ├── API_REFERENCE.md      # API documentation
+│   ├── API_REFERENCE.md      # API documentation (v0.4.0 updated)
 │   ├── PROCESS_LOOPBACK_INVESTIGATION.md  # Technical research
 │   ├── STRUCTURE.md          # This file
 │   ├── version-management.md # Version strategy
+│   ├── pywac_dataflow_and_issues.md  # Original problem analysis
+│   ├── implementation_analysis.md     # Feature inventory & problems
+│   ├── technical_deep_dive.md         # Architecture analysis
+│   ├── callback_architecture_plan.md  # Callback approach (GIL issues)
+│   ├── queue_based_implementation_plan.md  # Queue solution design
+│   ├── queue_implementation_summary.md     # Final implementation results
 │   └── migrations/           # Migration guides
-│       └── v0.3.0-audiodata.md
+│       ├── v0.3.0-audiodata.md
+│       └── v0.4.0-queue-architecture.md  # Queue migration guide
 │
 ├── examples/                 # Usage examples
 │   ├── basic_usage.py
@@ -45,11 +52,22 @@ pypac/
 
 ### docs/ Directory
 - **README.md** - Documentation hub and navigation
-- **API_REFERENCE.md** - Complete API documentation
+- **API_REFERENCE.md** - Complete API documentation (v0.4.0: queue-based architecture)
 - **PROCESS_LOOPBACK_INVESTIGATION.md** - Technical deep-dive on Windows API
 - **STRUCTURE.md** - This file, explaining documentation organization
 - **version-management.md** - How we manage versions and releases
-- **migrations/** - Version-specific migration guides
+
+#### Implementation Documentation (v0.4.0)
+- **pywac_dataflow_and_issues.md** - Original polling architecture problems
+- **implementation_analysis.md** - Comprehensive feature inventory
+- **technical_deep_dive.md** - Performance analysis and measurements
+- **callback_architecture_plan.md** - Initial callback approach (encountered GIL issues)
+- **queue_based_implementation_plan.md** - Queue-based solution design
+- **queue_implementation_summary.md** - Final implementation results and metrics
+
+#### Migration Guides
+- **migrations/v0.3.0-audiodata.md** - AudioData class introduction
+- **migrations/v0.4.0-queue-architecture.md** - Queue-based architecture migration
 
 ## 🎯 Documentation Guidelines
 

@@ -40,4 +40,4 @@ Thanks to all contributors who made this release possible!
 
 ---
 
-**Full Changelog**: https://github.com/yourusername/pypac/compare/v{PREVIOUS}...v{VERSION}
+**Full Changelog**: https://github.com/Mega-Gorilla/pywac/compare/v{PREVIOUS}...v{VERSION}
