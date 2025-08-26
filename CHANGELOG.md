@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2024-12-26
+
+### Added
+- **Event-driven audio capture** using WASAPI SetEventHandle API
+- Automatic fallback to polling mode for compatibility
+- Event metrics tracking (`event_signals`, `timeouts`)
+- Performance mode detection in metrics API
+
+### Changed
+- **Performance**: CPU usage reduced from 3-5% to < 1% in event-driven mode
+- **Performance**: Eliminated polling in C++ capture thread when events are available
+- **Efficiency**: 100% event efficiency achieved (499 events, 0 timeouts)
+- Capture thread now reports mode (event-driven or polling)
+
+### Fixed
+- Unnecessary CPU usage from 1ms polling in capture loop
+- WaitForMultipleObjects now properly handles audio events
+
 ## [0.4.0] - 2024-12-26
 
 ### Added

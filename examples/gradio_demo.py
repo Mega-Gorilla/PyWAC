@@ -15,10 +15,10 @@ import threading
 from typing import Optional, List, Dict, Any, Tuple
 from pywac.audio_data import AudioData
 
-# Pre-import process_loopback_v2 to avoid threading issues
+# Pre-import process_loopback_queue to avoid threading issues
 try:
-    import process_loopback_v2
-    test_capture = process_loopback_v2.ProcessCapture()
+    import process_loopback_queue
+    test_capture = process_loopback_queue.QueueBasedProcessCapture()
     del test_capture
 except ImportError:
     pass

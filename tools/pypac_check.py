@@ -66,23 +66,42 @@ def check_module_files():
     print("MODULE FILES CHECK")
     print("=" * 60)
     
-    dist_path = os.path.join(os.path.dirname(__file__), 'dist')
+    # Check in parent directory where modules are built
+    parent_path = os.path.dirname(os.path.dirname(__file__))
     
-    if not os.path.exists(dist_path):
-        print(f"ERROR: dist/ folder not found at {dist_path}")
-        print("Run: python setup.py build_ext --inplace")
-        return False
+    modules_found = []
+    modules_missing = []
     
-    print(f"dist/ folder: {dist_path}")
+    # Expected modules for v0.4.1
+    expected_modules = {
+        'process_loopback_queue': 'Process audio capture (v0.4.1)',
+        '_pywac_native': 'Session management'
+    }
     
-    # Check for pywac.pyd
-    pywac_pyd = os.path.join(dist_path, 'pywac.pyd')
-    if os.path.exists(pywac_pyd):
-        size = os.path.getsize(pywac_pyd)
-        print(f"[OK] pywac.pyd found ({size:,} bytes)")
-    else:
-        print("[ERROR] pywac.pyd not found")
-        print("Run: python setup.py build_ext --inplace")
+    # Look for .pyd files
+    import glob
+    pyd_files = glob.glob(os.path.join(parent_path, '*.pyd'))
+    # Also check pywac subdirectory
+    pyd_files.extend(glob.glob(os.path.join(parent_path, 'pywac', '*.pyd')))
+    
+    for module_name, description in expected_modules.items():
+        found = False
+        for pyd in pyd_files:
+            basename = os.path.basename(pyd)
+            if module_name in basename:
+                size = os.path.getsize(pyd)
+                print(f"[OK] {basename} ({size:,} bytes) - {description}")
+                modules_found.append(module_name)
+                found = True
+                break
+        
+        if not found:
+            print(f"[MISSING] {module_name} - {description}")
+            modules_missing.append(module_name)
+    
+    if modules_missing:
+        print("\nTo build missing modules:")
+        print("  python setup.py build_ext --inplace")
         return False
     
     return True
@@ -123,8 +142,10 @@ def test_import():
     print("MODULE IMPORT TEST")
     print("=" * 60)
     
-    # Add dist to path
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'dist'))
+    # Add parent directory to path
+    parent_path = os.path.dirname(os.path.dirname(__file__))
+    if parent_path not in sys.path:
+        sys.path.insert(0, parent_path)
     
     try:
         import pywac

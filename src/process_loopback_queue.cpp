@@ -216,10 +216,17 @@ private:
     ThreadSafeAudioQueue audioQueue;
     size_t chunkSize = 480;  // 10ms at 48kHz
     
+    // Event-driven support
+    HANDLE audioDataEvent = nullptr;
+    HANDLE stopEvent = nullptr;
+    bool eventDrivenMode = false;
+    
     // Performance metrics
     std::atomic<size_t> totalFramesCaptured{0};
     std::atomic<size_t> totalSilentFrames{0};
     std::atomic<size_t> captureErrors{0};
+    std::atomic<size_t> eventSignals{0};
+    std::atomic<size_t> timeouts{0};
     std::chrono::steady_clock::time_point startTime;
     
     void captureLoop() {
@@ -239,19 +246,55 @@ private:
             return;
         }
         
-        std::cout << "Capture thread started, chunk size: " << chunkSize << " frames" << std::endl;
+        std::cout << "Capture thread started";
+        if (eventDrivenMode) {
+            std::cout << " (event-driven mode)";
+        } else {
+            std::cout << " (polling mode)";
+        }
+        std::cout << ", chunk size: " << chunkSize << " frames" << std::endl;
         
         // Accumulator for partial chunks
         AudioChunk currentChunk(chunkSize);
         size_t currentOffset = 0;
         
         while (!shouldStop) {
+            bool dataAvailable = false;
+            
+            if (eventDrivenMode && audioDataEvent && stopEvent) {
+                // Wait for audio event or stop signal
+                HANDLE events[2] = { stopEvent, audioDataEvent };
+                DWORD waitResult = WaitForMultipleObjects(2, events, FALSE, 100);
+                
+                if (waitResult == WAIT_OBJECT_0) {
+                    // Stop event signaled
+                    break;
+                } else if (waitResult == WAIT_OBJECT_0 + 1) {
+                    // Audio data available
+                    dataAvailable = true;
+                    eventSignals++;
+                } else if (waitResult == WAIT_TIMEOUT) {
+                    timeouts++;
+                    continue;
+                }
+            } else {
+                // Polling mode - always check for data
+                dataAvailable = true;
+            }
+            
+            if (!dataAvailable) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                continue;
+            }
+            
             UINT32 packetSize = 0;
             hr = captureClient->GetNextPacketSize(&packetSize);
             
             if (FAILED(hr)) {
                 captureErrors++;
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                if (!eventDrivenMode) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                }
                 continue;
             }
             
@@ -325,8 +368,10 @@ private:
                 }
             }
             
-            // Small sleep to prevent CPU spinning
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            // Only sleep in polling mode
+            if (!eventDrivenMode) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
         }
         
         // Push any remaining partial chunk
@@ -352,6 +397,14 @@ public:
         stop();
         if (waveFormat) {
             CoTaskMemFree(waveFormat);
+        }
+        if (audioDataEvent) {
+            CloseHandle(audioDataEvent);
+            audioDataEvent = nullptr;
+        }
+        if (stopEvent) {
+            CloseHandle(stopEvent);
+            stopEvent = nullptr;
         }
     }
     
@@ -418,19 +471,68 @@ public:
         format.nAvgBytesPerSec = format.nSamplesPerSec * format.nBlockAlign;
         format.cbSize = 0;
         
-        // Initialize with fixed format
+        // Try event-driven mode first
+        DWORD streamFlags = AUDCLNT_STREAMFLAGS_LOOPBACK | AUDCLNT_STREAMFLAGS_EVENTCALLBACK;
+        bool tryEventDriven = true;
+        
+        // Initialize with event callback flag
         hr = audioClient->Initialize(
             AUDCLNT_SHAREMODE_SHARED,
-            AUDCLNT_STREAMFLAGS_LOOPBACK,
-            0, 0,
+            streamFlags,
+            0, 0,  // Must be 0 for event-driven
             &format,
             nullptr
         );
         
         if (FAILED(hr)) {
-            std::cerr << "Initialize failed: 0x" << std::hex << hr << std::endl;
-            if (needsUninit) CoUninitialize();
-            return false;
+            // Some systems might not support event-driven with Process Loopback
+            // Fall back to polling mode
+            std::cout << "Event-driven init failed (0x" << std::hex << hr 
+                      << "), using polling mode" << std::endl;
+            
+            streamFlags = AUDCLNT_STREAMFLAGS_LOOPBACK;
+            tryEventDriven = false;
+            
+            // Try again without event callback
+            hr = audioClient->Initialize(
+                AUDCLNT_SHAREMODE_SHARED,
+                streamFlags,
+                0, 0,
+                &format,
+                nullptr
+            );
+            
+            if (FAILED(hr)) {
+                std::cerr << "Initialize failed: 0x" << std::hex << hr << std::endl;
+                if (needsUninit) CoUninitialize();
+                return false;
+            }
+        }
+        
+        // Set up event-driven mode if successfully initialized with EVENTCALLBACK
+        if (tryEventDriven) {
+            audioDataEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+            stopEvent = CreateEvent(nullptr, TRUE, FALSE, nullptr);
+            
+            if (audioDataEvent && stopEvent) {
+                hr = audioClient->SetEventHandle(audioDataEvent);
+                if (SUCCEEDED(hr)) {
+                    eventDrivenMode = true;
+                    std::cout << "Event-driven mode enabled (SetEventHandle succeeded)" << std::endl;
+                } else {
+                    std::cerr << "SetEventHandle failed: 0x" << std::hex << hr 
+                              << ", falling back to polling mode" << std::endl;
+                    CloseHandle(audioDataEvent);
+                    CloseHandle(stopEvent);
+                    audioDataEvent = nullptr;
+                    stopEvent = nullptr;
+                    eventDrivenMode = false;
+                }
+            }
+        }
+        
+        if (!eventDrivenMode) {
+            std::cout << "Using polling mode for capture" << std::endl;
         }
         
         // Store format
@@ -453,6 +555,8 @@ public:
         totalFramesCaptured = 0;
         totalSilentFrames = 0;
         captureErrors = 0;
+        eventSignals = 0;
+        timeouts = 0;
         startTime = std::chrono::steady_clock::now();
         
         // Start capture thread
@@ -471,6 +575,11 @@ public:
         
         shouldStop = true;
         audioQueue.close();
+        
+        // Signal stop event if in event-driven mode
+        if (stopEvent) {
+            SetEvent(stopEvent);
+        }
         
         if (captureThread.joinable()) {
             captureThread.join();
@@ -561,6 +670,9 @@ public:
         metrics["total_chunks"] = queueStats["total_chunks"];
         metrics["dropped_chunks"] = queueStats["dropped_chunks"];
         metrics["chunk_size"] = chunkSize;
+        metrics["event_driven"] = eventDrivenMode;
+        metrics["event_signals"] = eventSignals.load();
+        metrics["timeouts"] = timeouts.load();
         
         if (elapsed > 0) {
             metrics["frames_per_second"] = totalFramesCaptured.load() / elapsed;

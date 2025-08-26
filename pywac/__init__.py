@@ -5,7 +5,7 @@ A high-level Python library for Windows audio capture and control.
 Enables process-specific audio recording and volume control.
 """
 
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 __author__ = "PyWAC Contributors"
 
 # Import native extension

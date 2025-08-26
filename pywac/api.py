@@ -13,9 +13,9 @@ from .audio_data import AudioData
 
 
 def _import_process_loopback():
-    """Helper function to import process_loopback_v2 module with path fixes."""
+    """Helper function to import process_loopback_queue module with path fixes."""
     try:
-        import process_loopback_v2 as loopback
+        import process_loopback_queue as loopback
         return loopback
     except ImportError:
         # Try adding parent directory to path
@@ -23,7 +23,7 @@ def _import_process_loopback():
         if parent_dir not in sys.path:
             sys.path.insert(0, parent_dir)
         try:
-            import process_loopback_v2 as loopback
+            import process_loopback_queue as loopback
             return loopback
         except ImportError:
             return None
@@ -176,25 +176,34 @@ def _record_with_loopback(pid: int, duration: float) -> Optional[AudioData]:
             return None
         
         import time
+        import numpy as np
         
         # Create capture instance
-        capture = loopback.ProcessCapture()
+        capture = loopback.QueueBasedProcessCapture()
         
         # Start capturing
         if not capture.start(pid):
             return None
         
         # Record for specified duration
-        time.sleep(duration)
+        start_time = time.time()
+        audio_chunks = []
         
-        # Get captured audio
-        audio_data = capture.get_buffer()
+        while time.time() - start_time < duration:
+            chunks = capture.pop_chunks(max_chunks=100, timeout_ms=10)
+            for chunk in chunks:
+                if not chunk.get('silent', False):
+                    audio_chunks.append(chunk['data'])
+            time.sleep(0.01)
+        
+        # Stop capture
         capture.stop()
         
-        # Convert to AudioData
-        if audio_data is not None and len(audio_data) > 0:
+        # Combine chunks
+        if audio_chunks:
+            audio_data = np.concatenate(audio_chunks, axis=0)
             return AudioData.from_interleaved(
-                data=audio_data,
+                data=audio_data.flatten(),
                 sample_rate=48000,
                 channels=2
             )
@@ -284,8 +293,9 @@ def record_process(process_name: str, filename: str, duration: float) -> bool:
         
         process_name_lower = process_name.lower()
         for proc in processes:
-            if process_name_lower in proc.name.lower():
-                target_pid = proc.pid
+            proc_name = getattr(proc, 'name', '')
+            if process_name_lower in proc_name.lower():
+                target_pid = getattr(proc, 'pid', 0)
                 break
         
         if target_pid is None:
@@ -351,7 +361,7 @@ def list_recordable_processes() -> List[Dict[str, Any]]:
         ...     print(f"{proc['name']} (PID: {proc['pid']})")
         
     Note:
-        Requires process_loopback_v2 module for process-specific recording.
+        Requires process_loopback_queue module for process-specific recording.
     """
     try:
         loopback = _import_process_loopback()
@@ -360,7 +370,7 @@ def list_recordable_processes() -> List[Dict[str, Any]]:
         
         processes = loopback.list_audio_processes()
         return [
-            {'pid': proc.pid, 'name': proc.name}
+            {'pid': getattr(proc, 'pid', 0), 'name': getattr(proc, 'name', 'Unknown')}
             for proc in processes
         ]
     except ImportError:

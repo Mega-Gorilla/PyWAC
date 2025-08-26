@@ -1,59 +1,59 @@
-# PyWAC API Reference
+# PyWAC API リファレンス
 
-## Core Functions
+## コア関数
 
-### Audio Recording
+### オーディオ録音
 
 #### `record_audio(duration: float) -> AudioData`
-Record system-wide audio for a specified duration.
+指定した時間だけシステム全体のオーディオを録音します。
 
-**Parameters:**
-- `duration`: Recording duration in seconds
+**パラメータ:**
+- `duration`: 録音時間（秒）
 
-**Returns:**
-- `AudioData` object containing the recorded audio
+**戻り値:**
+- 録音されたオーディオを含む`AudioData`オブジェクト
 
-**Example:**
+**例:**
 ```python
-audio_data = pywac.record_audio(5)  # Record 5 seconds
+audio_data = pywac.record_audio(5)  # 5秒間録音
 audio_data.save("output.wav")
 ```
 
 ---
 
 #### `record_to_file(filename: str, duration: float) -> bool`
-Record system-wide audio directly to a WAV file.
+システム全体のオーディオを直接WAVファイルに録音します。
 
-**Parameters:**
-- `filename`: Output WAV filename
-- `duration`: Recording duration in seconds
+**パラメータ:**
+- `filename`: 出力WAVファイル名
+- `duration`: 録音時間（秒）
 
-**Returns:**
-- True if successful
+**戻り値:**
+- 成功時はTrue
 
-**Example:**
+**例:**
 ```python
-pywac.record_to_file("output.wav", 10)  # Record 10 seconds
+pywac.record_to_file("output.wav", 10)  # 10秒間録音
 ```
 
 ---
 
 #### `record_process(process_name: str, filename: str, duration: float) -> bool`
-Record audio from a specific process only (Windows 10 2004+).
+特定のプロセスからのみオーディオを録音します（Windows 10 2004以降）。
 
-**Parameters:**
-- `process_name`: Name or partial name of the process
-- `filename`: Output WAV filename
-- `duration`: Recording duration in seconds
+**パラメータ:**
+- `process_name`: プロセス名または部分名
+- `filename`: 出力WAVファイル名
+- `duration`: 録音時間（秒）
 
-**Returns:**
-- True if successful, False otherwise
+**戻り値:**
+- 成功時はTrue、失敗時はFalse
 
-**Requirements:**
-- Windows 10 version 2004 (Build 19041) or later
-- Process Loopback API support
+**必要要件:**
+- Windows 10 バージョン2004（ビルド19041）以降
+- Process Loopback APIサポート
 
-**Example:**
+**例:**
 ```python
 pywac.record_process("spotify", "spotify_audio.wav", 10)
 ```
@@ -61,35 +61,35 @@ pywac.record_process("spotify", "spotify_audio.wav", 10)
 ---
 
 #### `record_process_id(pid: int, filename: str, duration: float) -> bool`
-Record audio from a specific process by PID (Windows 10 2004+).
+PIDで特定のプロセスからオーディオを録音します（Windows 10 2004以降）。
 
-**Parameters:**
-- `pid`: Process ID (use 0 for system-wide recording)
-- `filename`: Output WAV filename
-- `duration`: Recording duration in seconds
+**パラメータ:**
+- `pid`: プロセスID（0でシステム全体の録音）
+- `filename`: 出力WAVファイル名
+- `duration`: 録音時間（秒）
 
-**Returns:**
-- True if successful, False otherwise
+**戻り値:**
+- 成功時はTrue、失敗時はFalse
 
-**Example:**
+**例:**
 ```python
 pywac.record_process_id(12345, "app_audio.wav", 10)
 ```
 
 ---
 
-### Session Management
+### セッション管理
 
 #### `list_audio_sessions(active_only: bool = False) -> List[Dict[str, Any]]`
-List all audio sessions.
+すべてのオーディオセッションを一覧表示します。
 
-**Parameters:**
-- `active_only`: If True, only return active sessions
+**パラメータ:**
+- `active_only`: Trueの場合、アクティブなセッションのみを返す
 
-**Returns:**
-- List of session information dictionaries
+**戻り値:**
+- セッション情報の辞書のリスト
 
-**Example:**
+**例:**
 ```python
 sessions = pywac.list_audio_sessions()
 for session in sessions:
@@ -99,12 +99,12 @@ for session in sessions:
 ---
 
 #### `list_recordable_processes() -> List[Dict[str, Any]]`
-List all processes that can be recorded (have audio sessions).
+録音可能なすべてのプロセス（オーディオセッションを持つ）を一覧表示します。
 
-**Returns:**
-- List of process information dictionaries with 'pid' and 'name' keys
+**戻り値:**
+- 'pid'と'name'キーを持つプロセス情報辞書のリスト
 
-**Example:**
+**例:**
 ```python
 processes = pywac.list_recordable_processes()
 for proc in processes:
@@ -114,100 +114,100 @@ for proc in processes:
 ---
 
 #### `find_audio_session(app_name: str) -> Optional[Dict[str, Any]]`
-Find an audio session by application name.
+アプリケーション名でオーディオセッションを検索します。
 
-**Parameters:**
-- `app_name`: Name or partial name of the application
+**パラメータ:**
+- `app_name`: アプリケーションの名前または部分名
 
-**Returns:**
-- Session information dictionary, or None if not found
+**戻り値:**
+- セッション情報辞書、見つからない場合はNone
 
-**Example:**
+**例:**
 ```python
 info = pywac.find_audio_session("firefox")
 if info:
-    print(f"Firefox is {'active' if info['is_active'] else 'inactive'}")
+    print(f"Firefoxは{'アクティブ' if info['is_active'] else '非アクティブ'}です")
 ```
 
 ---
 
 #### `get_active_sessions() -> List[str]`
-Get list of process names currently playing audio.
+現在オーディオを再生しているプロセス名のリストを取得します。
 
-**Returns:**
-- List of process names with active audio sessions
+**戻り値:**
+- アクティブなオーディオセッションを持つプロセス名のリスト
 
-**Example:**
+**例:**
 ```python
 active = pywac.get_active_sessions()
-print(f"Active sessions: {', '.join(active)}")
+print(f"アクティブなセッション: {', '.join(active)}")
 ```
 
 ---
 
-### Volume Control
+### ボリューム制御
 
 #### `set_app_volume(app_name: str, volume: float) -> bool`
-Set the volume for an application.
+アプリケーションのボリュームを設定します。
 
-**Parameters:**
-- `app_name`: Name or partial name of the application
-- `volume`: Volume level (0.0 to 1.0)
+**パラメータ:**
+- `app_name`: アプリケーションの名前または部分名
+- `volume`: ボリュームレベル（0.0〜1.0）
 
-**Returns:**
-- True if successful, False otherwise
+**戻り値:**
+- 成功時はTrue、失敗時はFalse
 
-**Example:**
+**例:**
 ```python
-pywac.set_app_volume("firefox", 0.5)  # Set Firefox to 50%
+pywac.set_app_volume("firefox", 0.5)  # Firefoxを50%に設定
 ```
 
 ---
 
 #### `get_app_volume(app_name: str) -> Optional[float]`
-Get the current volume for an application.
+アプリケーションの現在のボリュームを取得します。
 
-**Parameters:**
-- `app_name`: Name or partial name of the application
+**パラメータ:**
+- `app_name`: アプリケーションの名前または部分名
 
-**Returns:**
-- Volume level (0.0 to 1.0), or None if app not found
+**戻り値:**
+- ボリュームレベル（0.0〜1.0）、アプリが見つからない場合はNone
 
-**Example:**
+**例:**
 ```python
 volume = pywac.get_app_volume("firefox")
-print(f"Firefox volume: {volume * 100:.0f}%")
+print(f"Firefoxのボリューム: {volume * 100:.0f}%")
 ```
 
 ---
 
 #### `adjust_volume(app_name: str, delta: float) -> Optional[float]`
-Adjust an application's volume by a delta value.
+アプリケーションのボリュームをデルタ値で調整します。
 
-**Parameters:**
-- `app_name`: Name or partial name of the application
-- `delta`: Volume change (-1.0 to 1.0)
+**パラメータ:**
+- `app_name`: アプリケーションの名前または部分名
+- `delta`: ボリューム変更量（-1.0〜1.0）
 
-**Returns:**
-- New volume level, or None if app not found
+**戻り値:**
+- 新しいボリュームレベル、アプリが見つからない場合はNone
 
-**Example:**
+**例:**
 ```python
-new_volume = pywac.adjust_volume("spotify", 0.1)  # Increase by 10%
+new_volume = pywac.adjust_volume("spotify", 0.1)  # 10%増加
 ```
 
 ---
 
 #### `mute_app(app_name: str) -> bool`
-Mute an application.
+アプリケーションをミュートします。
 
-**Parameters:**
-- `app_name`: Name or partial name of the application
+**パラメータ:**
+- `app_name`: アプリケーションの名前または部分名
 
-**Returns:**
-- True if successful, False otherwise
+**戻り値:**
+- 成功時はTrue、失敗時はFalse
 
-**Example:**
+**例:**
 ```python
 pywac.mute_app("discord")
 ```
@@ -215,53 +215,53 @@ pywac.mute_app("discord")
 ---
 
 #### `unmute_app(app_name: str) -> bool`
-Unmute an application.
+アプリケーションのミュートを解除します。
 
-**Parameters:**
-- `app_name`: Name or partial name of the application
+**パラメータ:**
+- `app_name`: アプリケーションの名前または部分名
 
-**Returns:**
-- True if successful, False otherwise
+**戻り値:**
+- 成功時はTrue、失敗時はFalse
 
-**Example:**
+**例:**
 ```python
 pywac.unmute_app("discord")
 ```
 
 ---
 
-## Classes
+## クラス
 
 ### AudioData
-Unified audio data container (v0.3.0+).
+統一されたオーディオデータコンテナ（v0.3.0以降）。
 
-#### Constructor
+#### コンストラクタ
 ```python
 AudioData(samples: np.ndarray, sample_rate: int = 48000, channels: int = 2)
 ```
 
-#### Properties
-- `samples`: NumPy array of audio samples
-- `sample_rate`: Sample rate in Hz
-- `channels`: Number of channels
-- `num_frames`: Number of audio frames
-- `duration`: Duration in seconds
-- `dtype`: Data type of samples
+#### プロパティ
+- `samples`: オーディオサンプルのNumPy配列
+- `sample_rate`: サンプルレート（Hz）
+- `channels`: チャンネル数
+- `num_frames`: オーディオフレーム数
+- `duration`: 秒単位の期間
+- `dtype`: サンプルのデータ型
 
-#### Methods
-- `save(filename: str) -> None`: Save to WAV file
-- `to_mono() -> AudioData`: Convert to mono
-- `resample(target_rate: int) -> AudioData`: Resample audio
-- `normalize(peak: float = 1.0) -> AudioData`: Normalize audio
-- `get_statistics() -> Dict`: Get audio statistics (RMS, peak, etc.)
-- `@classmethod create_empty() -> AudioData`: Create empty AudioData
+#### メソッド
+- `save(filename: str) -> None`: WAVファイルに保存
+- `to_mono() -> AudioData`: モノラルに変換
+- `resample(target_rate: int) -> AudioData`: オーディオをリサンプリング
+- `normalize(peak: float = 1.0) -> AudioData`: オーディオを正規化
+- `get_statistics() -> Dict`: オーディオ統計（RMS、ピークなど）を取得
+- `@classmethod create_empty() -> AudioData`: 空のAudioDataを作成
 
 ---
 
 ### QueueBasedStreamingCapture
-High-performance streaming audio capture with adaptive polling (v0.4.0+).
+アダプティブポーリングによる高性能ストリーミングオーディオキャプチャ（v0.4.0以降）。
 
-#### Constructor
+#### コンストラクタ
 ```python
 QueueBasedStreamingCapture(
     process_id: int = 0,
@@ -272,24 +272,24 @@ QueueBasedStreamingCapture(
 )
 ```
 
-#### Parameters
-- `process_id`: Process ID to capture (0 for system-wide)
-- `chunk_duration`: Duration of each chunk in seconds (default: 10ms)
-- `on_audio`: Callback for streaming audio chunks
-- `queue_size`: Maximum queue size in C++
-- `batch_size`: Number of chunks to pop at once
+#### パラメータ
+- `process_id`: キャプチャするプロセスID（0でシステム全体）
+- `chunk_duration`: 各チャンクの秒単位の期間（デフォルト：10ms）
+- `on_audio`: ストリーミングオーディオチャンク用のコールバック
+- `queue_size`: C++での最大キューサイズ
+- `batch_size`: 一度にポップするチャンク数
 
-#### Methods
-- `start() -> bool`: Start audio capture
-- `stop() -> AudioData`: Stop capture and return accumulated audio
-- `get_metrics() -> Dict`: Get performance metrics
+#### メソッド
+- `start() -> bool`: オーディオキャプチャを開始
+- `stop() -> AudioData`: キャプチャを停止し、蓄積されたオーディオを返す
+- `get_metrics() -> Dict`: パフォーマンスメトリクスを取得
 
-#### Example
+#### 例
 ```python
 from pywac.queue_streaming import QueueBasedStreamingCapture
 
 def on_audio_chunk(audio: AudioData):
-    print(f"Received {audio.duration:.3f}s of audio")
+    print(f"{audio.duration:.3f}秒のオーディオを受信")
 
 capture = QueueBasedStreamingCapture(
     process_id=spotify_pid,
@@ -305,119 +305,118 @@ if capture.start():
 ---
 
 ### AudioRecorder
-High-level interface for audio recording.
+オーディオ録音用の高レベルインターフェース。
 
-#### Constructor
+#### コンストラクタ
 ```python
 AudioRecorder(sample_rate: int = 48000, channels: int = 2)
 ```
 
-#### Methods
-- `start(duration: Optional[float] = None) -> bool`: Start recording
-- `stop() -> AudioData`: Stop recording and return audio data
-- `record(duration: float) -> AudioData`: Record for specified duration (blocking)
-- `record_to_file(filename: str, duration: float) -> bool`: Record directly to file
-- `save(filename: Optional[str] = None) -> str`: Save current recording to file
+#### メソッド
+- `start(duration: Optional[float] = None) -> bool`: 録音開始
+- `stop() -> AudioData`: 録音停止し、オーディオデータを返す
+- `record(duration: float) -> AudioData`: 指定時間録音（ブロッキング）
+- `record_to_file(filename: str, duration: float) -> bool`: ファイルに直接録音
+- `save(filename: Optional[str] = None) -> str`: 現在の録音をファイルに保存
 
-#### Properties
-- `is_recording`: Check if currently recording
-- `recording_time`: Get current recording time in seconds
-- `sample_count`: Get current number of recorded samples
+#### プロパティ
+- `is_recording`: 現在録音中かチェック
+- `recording_time`: 現在の録音時間を秒単位で取得
+- `sample_count`: 現在の録音サンプル数を取得
 
 ---
 
 ### SessionManager
-High-level interface for managing audio sessions.
+オーディオセッション管理用の高レベルインターフェース。
 
-#### Methods
-- `list_sessions(active_only: bool = False) -> List[AudioSession]`: List all sessions
-- `find_session(app_name: str) -> Optional[AudioSession]`: Find session by name
-- `set_volume(app_name: str, volume: float) -> bool`: Set volume
-- `get_volume(app_name: str) -> Optional[float]`: Get volume
-- `set_mute(app_name: str, mute: bool) -> bool`: Set mute state
+#### メソッド
+- `list_sessions(active_only: bool = False) -> List[AudioSession]`: すべてのセッションを一覧表示
+- `find_session(app_name: str) -> Optional[AudioSession]`: 名前でセッションを検索
+- `set_volume(app_name: str, volume: float) -> bool`: ボリュームを設定
+- `get_volume(app_name: str) -> Optional[float]`: ボリュームを取得
+- `set_mute(app_name: str, mute: bool) -> bool`: ミュート状態を設定
 
 ---
 
 ### AudioSession
-Represents an audio session for a Windows process.
+Windowsプロセスのオーディオセッションを表します。
 
-#### Properties
-- `process_id`: Process ID
-- `process_name`: Process name
-- `state`: Session state (0: Inactive, 1: Active, 2: Expired)
-- `volume`: Volume level (0.0 to 1.0)
-- `is_active`: Check if actively playing audio
-- `is_muted`: Check if muted
+#### プロパティ
+- `process_id`: プロセスID
+- `process_name`: プロセス名
+- `state`: セッション状態（0: 非アクティブ、1: アクティブ、2: 期限切れ）
+- `volume`: ボリュームレベル（0.0〜1.0）
+- `is_active`: アクティブにオーディオを再生しているかチェック
+- `is_muted`: ミュートされているかチェック
 
 ---
 
-## Low-Level Modules
+## 低レベルモジュール
 
 ### process_loopback_queue
-C++ module for queue-based process audio capture (v0.4.0+).
+イベント駆動型プロセスオーディオキャプチャ用のC++モジュール（v0.4.1以降）。
+SetEventHandle APIを使用してゼロポーリングを実現。
 
-#### Functions
-- `list_audio_processes() -> List[ProcessInfo]`: List processes that might produce audio
+#### 関数
+- `list_audio_processes() -> List[ProcessInfo]`: オーディオを生成する可能性のあるプロセスを一覧表示
   
-#### Classes
+#### クラス
 
 ##### QueueBasedProcessCapture
-Low-level queue-based capture interface.
+低レベルのキューベースキャプチャインターフェース。
 
-**Methods:**
-- `start(process_id: int) -> bool`: Start capturing
-- `stop() -> None`: Stop capturing
-- `set_chunk_size(frames: int) -> None`: Set chunk size (before start)
-- `pop_chunks(max_chunks: int = 10, timeout_ms: int = 10) -> List[Dict]`: Pop chunks from queue
-- `pop_chunk(timeout_ms: int = 10) -> Optional[Dict]`: Pop single chunk
-- `queue_size() -> int`: Get current queue size
-- `is_capturing() -> bool`: Check if currently capturing
-- `get_metrics() -> Dict`: Get performance metrics
+**メソッド:**
+- `start(process_id: int) -> bool`: キャプチャ開始
+- `stop() -> None`: キャプチャ停止
+- `set_chunk_size(frames: int) -> None`: チャンクサイズ設定（開始前）
+- `pop_chunks(max_chunks: int = 10, timeout_ms: int = 10) -> List[Dict]`: キューからチャンクをポップ
+- `pop_chunk(timeout_ms: int = 10) -> Optional[Dict]`: 単一チャンクをポップ
+- `queue_size() -> int`: 現在のキューサイズを取得
+- `is_capturing() -> bool`: 現在キャプチャ中かチェック
+- `get_metrics() -> Dict`: パフォーマンスメトリクスを取得
 
-**Chunk Dictionary Format:**
+**チャンク辞書フォーマット:**
 ```python
 {
-    "data": np.ndarray,      # Audio samples (frames, 2)
-    "silent": bool,           # Whether chunk is silent
-    "timestamp": int          # Microseconds since epoch
+    "data": np.ndarray,      # オーディオサンプル (frames, 2)
+    "silent": bool,           # チャンクが無音かどうか
+    "timestamp": int          # エポックからのマイクロ秒
 }
 ```
 
 ---
 
-### process_loopback_v2 (Deprecated)
-Polling-based process capture. Use `process_loopback_queue` instead.
-
-### process_loopback_v3 (Experimental)
-Callback-based capture. Has GIL issues - use `process_loopback_queue` instead.
+### 注意事項
+- v0.4.1以降、`process_loopback_queue`が推奨モジュールです
+- 以前のバージョン（process_loopback_v2, process_loopback_v3）は非推奨です
 
 ---
 
-## Utility Functions
+## ユーティリティ関数
 
 ### `save_to_wav(audio_data: AudioData, filename: str) -> None`
-Save AudioData to WAV file.
+AudioDataをWAVファイルに保存。
 
 ### `capture_process_audio(process_id: int = 0, duration: float = 5.0, on_audio: Optional[Callable] = None) -> AudioData`
-Convenience function for simple audio capture.
+シンプルなオーディオキャプチャ用の便利関数。
 
-**Parameters:**
-- `process_id`: Process ID (0 for system-wide)
-- `duration`: Duration to capture in seconds
-- `on_audio`: Optional callback for streaming
+**パラメータ:**
+- `process_id`: プロセスID（0でシステム全体）
+- `duration`: キャプチャする秒数
+- `on_audio`: ストリーミング用のオプションコールバック
 
-**Returns:**
-- `AudioData` object with captured audio
+**戻り値:**
+- キャプチャされたオーディオを含む`AudioData`オブジェクト
 
-**Example:**
+**例:**
 ```python
 from pywac.queue_streaming import capture_process_audio
 
-# Simple capture
+# シンプルなキャプチャ
 audio = capture_process_audio(spotify_pid, duration=10)
 audio.save("spotify_10s.wav")
 
-# With streaming callback
+# ストリーミングコールバック付き
 def on_chunk(audio):
     print(f"RMS: {audio.get_statistics()['rms_db']:.1f} dB")
 
@@ -426,9 +425,9 @@ audio = capture_process_audio(0, duration=5, on_audio=on_chunk)
 
 ---
 
-## Performance Metrics
+## パフォーマンスメトリクス
 
-The queue-based implementation provides detailed metrics:
+キューベース実装は詳細なメトリクスを提供します：
 
 ```python
 capture = QueueBasedStreamingCapture(process_id=0)
@@ -437,49 +436,50 @@ time.sleep(5)
 audio = capture.stop()
 
 metrics = capture.get_metrics()
-print(f"Total chunks: {metrics['total_chunks']}")
-print(f"Dropped chunks: {metrics['dropped_chunks']}")
-print(f"Poll efficiency: {metrics['efficiency']:.2f} chunks/poll")
-print(f"Current interval: {metrics['current_interval_ms']:.1f}ms")
+print(f"総チャンク数: {metrics['total_chunks']}")
+print(f"ドロップされたチャンク: {metrics['dropped_chunks']}")
+print(f"ポーリング効率: {metrics['efficiency']:.2f} chunks/poll")
+print(f"現在の間隔: {metrics['current_interval_ms']:.1f}ms")
 ```
 
-Typical metrics:
-- CPU usage: < 5%
-- Polling interval: 1-20ms (adaptive)
-- Latency: ~10ms
-- Drop rate: 0%
+典型的なメトリクス（v0.4.1）:
+- CPU使用率: < 1%（イベント駆動モード）
+- ポーリング間隔: イベント駆動（SetEventHandle使用時）
+- レイテンシ: ~10ms
+- ドロップ率: 0%
+- イベント効率: 100%（イベント駆動モード）
 
 ---
 
-## Migration Guide
+## 移行ガイド
 
-### From v0.2.x to v0.4.x
+### v0.3.x から v0.4.x へ
 
-1. **AudioData Return Type**: Functions now return `AudioData` objects instead of lists:
+1. **AudioData戻り値型**: 関数はリストの代わりに`AudioData`オブジェクトを返すようになりました：
 ```python
-# Old (v0.2.x)
+# 古い (v0.3.x以前)
 samples = pywac.record_audio(5)
 save_to_wav(samples, "output.wav")
 
-# New (v0.4.x)
+# 新しい (v0.4.x)
 audio = pywac.record_audio(5)
 audio.save("output.wav")
 ```
 
-2. **Process Capture**: Use queue-based implementation:
+2. **プロセスキャプチャ**: キューベース実装を使用：
 ```python
-# Old (polling)
-import process_loopback_v2 as loopback
-capture = loopback.ProcessCapture()
-
-# New (queue-based)
+# 新しい (v0.4.0以降)
 from pywac.queue_streaming import QueueBasedStreamingCapture
 capture = QueueBasedStreamingCapture(process_id=pid)
+
+# または低レベルAPI
+import process_loopback_queue
+capture = process_loopback_queue.QueueBasedProcessCapture()
 ```
 
-3. **Streaming**: New callback interface:
+3. **ストリーミング**: 新しいコールバックインターフェース：
 ```python
-# New streaming with callbacks
+# 新しいコールバック付きストリーミング
 def on_audio(audio: AudioData):
     stats = audio.get_statistics()
     print(f"RMS: {stats['rms_db']:.1f} dB")
@@ -492,9 +492,10 @@ capture = QueueBasedStreamingCapture(
 
 ---
 
-## Version History
+## バージョン履歴
 
-- **v0.4.0**: Queue-based architecture, resolved GIL issues, < 5% CPU usage
-- **v0.3.0**: AudioData class, unified format handling
-- **v0.2.0**: Process Loopback API implementation
-- **v0.1.0**: Initial release with WASAPI support
+- **v0.4.1**: イベント駆動キャプチャ（SetEventHandle）、CPU使用率 < 1%
+- **v0.4.0**: キューベースアーキテクチャ、GIL問題解決、CPU使用率 < 5%
+- **v0.3.0**: AudioDataクラス、統一フォーマット処理
+- **v0.2.0**: Process Loopback API実装
+- **v0.1.0**: WASAPI サポートを含む初期リリース

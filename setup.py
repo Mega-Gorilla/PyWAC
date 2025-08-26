@@ -24,7 +24,7 @@ def get_version():
 # Define native extensions
 ext_modules = [
     Pybind11Extension(
-        "pywac._pywac_native",  # Will be imported as pywac._pywac_native
+        "pywac._pywac_native",  # Session management and volume control
         ["src/audio_session_capture.cpp"],
         include_dirs=[],
         libraries=["ole32", "uuid", "mmdevapi", "psapi"],
@@ -32,23 +32,7 @@ ext_modules = [
         cxx_std=17,
     ),
     Pybind11Extension(
-        "process_loopback_v2",  # Test module for process-specific capture
-        ["src/process_loopback_v2.cpp"],
-        include_dirs=[],
-        libraries=["ole32", "uuid", "mmdevapi", "avrt", "runtimeobject"],
-        language="c++",
-        cxx_std=17,
-    ),
-    Pybind11Extension(
-        "process_loopback_v3",  # Callback-based process capture
-        ["src/process_loopback_v3.cpp"],
-        include_dirs=[],
-        libraries=["ole32", "uuid", "mmdevapi", "avrt", "runtimeobject", "psapi"],
-        language="c++",
-        cxx_std=17,
-    ),
-    Pybind11Extension(
-        "process_loopback_queue",  # Queue-based process capture (avoids GIL issues)
+        "process_loopback_queue",  # Event-driven process audio capture (v0.4.1)
         ["src/process_loopback_queue.cpp"],
         include_dirs=[],
         libraries=["ole32", "uuid", "mmdevapi", "avrt", "runtimeobject", "psapi"],
