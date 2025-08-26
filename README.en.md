@@ -5,7 +5,7 @@
 [![Python](https://img.shields.io/badge/Python-3.7+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![Windows](https://img.shields.io/badge/Windows-10%2F11-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://www.microsoft.com/windows)
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-0.2.0-blue?style=for-the-badge)](https://github.com/Mega-Gorilla/pywac)
+[![Version](https://img.shields.io/badge/Version-0.4.2-blue?style=for-the-badge)](https://github.com/Mega-Gorilla/pywac)
 
 **The Simplest Audio Control Library for Windows**
 
@@ -63,7 +63,7 @@ print(f"Active sessions: {', '.join(active)}")
 - **Volume control** - Per-application volume adjustment and muting
 - **Simple API** - Start recording with just one line of code
 - **Real-time monitoring** - Get audio session status in real-time
-- **Modern UI** - Interactive Gradio-based demo application
+- **Interactive Demo** - Gradio-based demo application
 - **Full Windows 11 support** - Leverages the latest Windows Audio APIs
 
 ### 🔍 Why Choose PyWAC?
@@ -602,7 +602,7 @@ PyWAC uses the Process Loopback API introduced in Windows 10 2004 (Build 19041) 
 | CPU usage | < 2% | During recording |
 | Memory usage | < 50MB | 60-second buffer |
 
-For detailed technical specifications, see the [Technical Investigation Report](docs/PROCESS_LOOPBACK_INVESTIGATION.md).
+For detailed technical specifications, see the [Technical Investigation Report](docs/Process_Loopback_API_Research.md).
 
 ---
 

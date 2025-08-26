@@ -5,7 +5,7 @@
 [![Python](https://img.shields.io/badge/Python-3.7+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![Windows](https://img.shields.io/badge/Windows-10%2F11-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://www.microsoft.com/windows)
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-0.2.0-blue?style=for-the-badge)](https://github.com/Mega-Gorilla/pywac)
+[![Version](https://img.shields.io/badge/Version-0.4.2-blue?style=for-the-badge)](https://github.com/Mega-Gorilla/pywac)
 
 **Windows対応のシンプルなオーディオ制御ライブラリ**
 
@@ -63,7 +63,7 @@ print(f"アクティブなセッション: {', '.join(active)}")
 - **音量制御** - アプリケーション単位での音量調整・ミュート
 - **シンプルなAPI** - 1行のコードで録音開始
 - **リアルタイム監視** - 音声セッションの状態をリアルタイムで取得
-- **モダンなUI** - Gradioベースの対話型デモアプリケーション
+- **対話型デモ** - Gradioベースのデモアプリケーション
 - **Windows 11完全対応** - 最新のWindows Audio APIを活用
 
 ### 🔍 なぜPyWACを選ぶ？
@@ -518,7 +518,7 @@ recorder = pywac.AudioRecorder()
 | `stop()` | 録音停止 |
 | `record(duration)` | 指定時間録音 |
 | `record_to_file(filename, duration)` | ファイルに直接録音 |
-| `get_buffer()` | 現在のバッファ取得 |
+| `get_audio()` | 現在のオーディオ取得 |
 | `is_recording` | 録音中か確認 |
 | `recording_time` | 録音時間取得 |
 | `sample_count` | サンプル数取得 |
@@ -654,7 +654,7 @@ Windows 10 2004 (Build 19041) で導入されたProcess Loopback APIを使用し
 | CPU使用率 | < 2% | 録音中 |
 | メモリ使用量 | < 50MB | 60秒バッファ |
 
-詳細な技術仕様は[技術調査レポート](docs/PROCESS_LOOPBACK_INVESTIGATION.md)を参照してください。
+詳細な技術仕様は[技術調査レポート](docs/Process_Loopback_API_Research.md)を参照してください。
 
 ### コントリビューション
 
