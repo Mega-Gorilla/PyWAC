@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-PyWAC Complete Feature Demo Application (Refactored Version)
-Integrated demo to try all PyWAC features
+PyWAC Audio Control Demo
+Interactive demo for all PyWAC features
 """
 
 import sys
@@ -786,11 +786,11 @@ def create_interface():
     """Create Gradio interface"""
     app = PyWACDemoApp()
     
-    with gr.Blocks(title="PyWAC完全機能デモ", theme=gr.themes.Soft(primary_hue="green", neutral_hue="slate")) as demo:
+    with gr.Blocks(title="PyWAC Demo", theme=gr.themes.Soft(primary_hue="green", neutral_hue="slate")) as demo:
         gr.Markdown("""
-        # 🎙️ PyWAC 完全機能デモ（リファクタリング版）
+        # 🎙️ PyWAC Audio Control Demo
         
-        Python Process Audio Capture - すべての機能を試せる統合デモ
+        Windows Audio Capture & Control Library
         """)
         
         # セッション管理タブ
@@ -1179,8 +1179,8 @@ def create_interface():
 
 
 if __name__ == "__main__":
-    print("Starting PyWAC Complete Feature Demo Application...")
-    print("ブラウザで http://localhost:7860 を開いてください")
+    print("Starting PyWAC Audio Control Demo...")
+    print("Open http://localhost:7860 in your browser")
     
     demo = create_interface()
     demo.launch(share=False, inbrowser=True)
