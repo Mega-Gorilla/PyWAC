@@ -44,7 +44,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=6.0",
-    "black>=24.0",
+    "black>=24.8.0",
     "pylint>=2.0",
     "mypy>=0.900",
     "sphinx>=4.0",
