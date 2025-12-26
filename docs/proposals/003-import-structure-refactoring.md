@@ -3,7 +3,7 @@
 **ステータス**: 提案中
 **関連Issue**: [#3](https://github.com/Mega-Gorilla/PyWAC/issues/3)
 **作成日**: 2024-12-26
-**対象バージョン**: v0.5.0（Phase 1）, v1.0.0（Phase 2）
+**対象バージョン**: v1.0.0（Phase 1 - 破壊的変更）, v2.0.0（Phase 2）
 
 ---
 
@@ -41,7 +41,10 @@ pywac/
 
 ## 提案する変更
 
-### Phase 1: 内部改善（v0.5.0）
+### Phase 1: 内部改善（v1.0.0 - 破壊的変更）
+
+> **注意**: `process_loopback_queue` モジュールを直接インポートしているコードは修正が必要です。
+> 詳細は[移行ガイド](#process_loopback_queue-からの移行)を参照してください。
 
 #### 1.1 ネイティブモジュール名の統一
 
@@ -179,7 +182,7 @@ if os.path.exists(_native_path):
 
 ---
 
-### Phase 2: API統一（v1.0.0）
+### Phase 2: API統一（v2.0.0）
 
 #### 2.1 用語の統一
 
@@ -187,8 +190,8 @@ if os.path.exists(_native_path):
 
 | 現在の関数 | 新しい関数 | 非推奨 |
 |-----------|-----------|--------|
-| `record_process()` | `record_session()` | v1.0.0で削除 |
-| `record_process_id()` | `record_session_by_pid()` | v1.0.0で削除 |
+| `record_process()` | `record_session()` | v2.0.0で削除 |
+| `record_process_id()` | `record_session_by_pid()` | v2.0.0で削除 |
 | `set_app_volume()` | `set_session_volume()` | v2.0.0で削除 |
 | `get_app_volume()` | `get_session_volume()` | v2.0.0で削除 |
 | `mute_app()` | `mute_session()` | v2.0.0で削除 |
@@ -198,7 +201,7 @@ if os.path.exists(_native_path):
 
 #### 2.2 非推奨関数の削除
 
-v1.0.0で削除：
+v2.0.0で削除：
 - `find_app()` → `find_audio_session()`
 - `get_active_apps()` → `get_active_sessions()`
 
@@ -210,7 +213,7 @@ v1.0.0で削除：
 
 | # | タスク | ファイル | 破壊的変更 |
 |---|--------|----------|-----------|
-| 1 | `process_loopback_queue` を `pywac._process_loopback` にリネーム | `setup.py` | なし |
+| 1 | `process_loopback_queue` を `pywac._process_loopback` にリネーム | `setup.py` | **あり** |
 | 2 | インポート文を更新 | `api.py`, `unified_recording.py` | なし |
 | 3 | `_native/__init__.py` を簡素化 | `pywac/_native/__init__.py` | なし |
 | 4 | グローバルシングルトンをスレッドセーフ化 | `api.py` | なし |
@@ -219,6 +222,7 @@ v1.0.0で削除：
 | 7 | `sys.path` 操作を削除 | `pywac/__init__.py` | なし |
 | 8 | テストを追加・更新 | `tests/` | なし |
 | 9 | ドキュメントを更新 | `docs/` | なし |
+| 10 | 移行ガイドを作成 | `docs/migrations/` | なし |
 
 ### テスト計画
 
@@ -272,12 +276,21 @@ def test_thread_safety():
 
 ## 互換性
 
-### 後方互換性
+### 破壊的変更（Phase 1）
 
-Phase 1は完全に後方互換：
-- すべての公開APIは変更なし
-- 既存のコードは修正不要で動作
-- 非推奨警告は `DeprecationWarning`（デフォルトで非表示）
+Phase 1は以下の破壊的変更を含む：
+
+| 変更 | 影響 | 対応 |
+|------|------|------|
+| `process_loopback_queue` → `pywac._process_loopback` | 直接インポートしているコードが動作しなくなる | 移行ガイドに従って修正 |
+
+**公開API（`pywac.record_process()` など）には影響なし。**
+
+### 後方互換性が維持される部分
+
+- `pywac` パッケージの公開API（`record_to_file`, `record_process`, `set_app_volume` など）
+- `pywac.SessionManager`, `pywac.AudioRecorder` クラス
+- `pywac.AudioData` クラス
 
 ### 前方互換性
 
@@ -288,12 +301,61 @@ Phase 2への移行を容易にするため：
 
 ---
 
+## `process_loopback_queue` からの移行
+
+### 影響を受けるコード
+
+`process_loopback_queue` を直接インポートしているコード：
+
+```python
+# v0.4.x（現在）
+import process_loopback_queue
+capture = process_loopback_queue.QueueBasedProcessCapture()
+```
+
+### 移行方法
+
+#### 方法1: 公開APIを使用（推奨）
+
+```python
+# v1.0.0以降（推奨）
+import pywac
+
+# プロセス固有の録音
+pywac.record_process("app_name", "output.wav", duration=10)
+
+# または PID を指定
+pywac.record_process_id(1234, "output.wav", duration=10)
+```
+
+#### 方法2: 内部モジュールを使用（非推奨）
+
+```python
+# v1.0.0以降（内部API、変更される可能性あり）
+from pywac import _process_loopback
+capture = _process_loopback.QueueBasedProcessCapture()
+```
+
+> **注意**: `_process_loopback` はプライベートモジュール（先頭が `_`）です。
+> 将来のバージョンで予告なく変更される可能性があります。
+> 可能な限り公開APIを使用してください。
+
+### 移行チェックリスト
+
+- [ ] `import process_loopback_queue` を検索
+- [ ] 公開API（`pywac.record_process` など）で置き換え可能か確認
+- [ ] 置き換え不可の場合は `from pywac import _process_loopback` に変更
+- [ ] テストを実行して動作確認
+
+---
+
 ## リスク評価
 
 | リスク | 影響度 | 発生確率 | 対策 |
 |--------|--------|----------|------|
+| `process_loopback_queue` 直接利用者への影響 | 高 | 低〜中 | 移行ガイド提供、リリースノートで周知 |
 | ビルド失敗 | 高 | 低 | CI/CDでテスト |
-| インポートエラー | 高 | 低 | 段階的移行、フォールバック |
+| インポートエラー | 高 | 低 | 明確なエラーメッセージ |
 | パフォーマンス低下 | 中 | 低 | ベンチマーク |
 | ドキュメント不整合 | 低 | 中 | レビュープロセス |
 
@@ -302,13 +364,15 @@ Phase 2への移行を容易にするため：
 ## タイムライン
 
 ```
-Phase 1 (v0.5.0)
-├── 実装
+Phase 1 (v1.0.0) - メジャーバージョンアップ
+├── 破壊的変更の実装
+│   └── process_loopback_queue → pywac._process_loopback
+├── 内部改善（スレッドセーフ化、コード簡素化）
+├── 移行ガイド作成
 ├── テスト
-├── ドキュメント更新
 └── リリース
 
-Phase 2 (v1.0.0)
+Phase 2 (v2.0.0)
 ├── 新API導入（エイリアス）
 ├── 移行期間
 ├── 非推奨関数削除
