@@ -19,7 +19,7 @@ def get_version():
             for line in f:
                 if line.startswith("__version__"):
                     return line.split("=")[1].strip().strip('"').strip("'")
-    return "0.2.0"
+    return "0.4.2"
 
 # Define native extensions
 ext_modules = [
@@ -68,47 +68,6 @@ setup(
     ext_modules=ext_modules,
     cmdclass={"build_ext": build_ext},
     
-    # Dependencies
-    install_requires=[
-        "numpy>=1.19.0",  # For audio processing
-    ],
-    extras_require={
-        "dev": [
-            "pytest>=6.0",
-            "black",
-            "pylint",
-            "mypy",
-            "sphinx",
-        ],
-        "examples": [
-            "psutil",  # For process debugging
-        ],
-    },
-    
-    # Python version requirement
-    python_requires=">=3.7",
-    
-    # Classifiers
-    classifiers=[
-        "Development Status :: 3 - Alpha",
-        "Intended Audience :: Developers",
-        "Topic :: Multimedia :: Sound/Audio :: Capture/Recording",
-        "Topic :: Software Development :: Libraries :: Python Modules",
-        "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
-        "Programming Language :: Python :: 3.11",
-        "Programming Language :: C++",
-        "Operating System :: Microsoft :: Windows",
-        "Operating System :: Microsoft :: Windows :: Windows 10",
-        "Operating System :: Microsoft :: Windows :: Windows 11",
-    ],
-    
-    # Keywords for PyPI
-    keywords="audio windows wasapi recording capture volume process loopback",
-    
-    # Entry points are defined in pyproject.toml
+    # Note: Dependencies, classifiers, and other metadata are defined in pyproject.toml
+    # to avoid duplication warnings. Only extension-specific configuration remains here.
 )
