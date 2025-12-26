@@ -1,6 +1,6 @@
 [build-system]
 requires = [
-    "setuptools>=61.0",
+    "setuptools>=69.0",
     "wheel",
     "pybind11>=2.10.0",
 ]
@@ -44,7 +44,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=6.0",
-    "black>=22.0",
+    "black>=24.0",
     "pylint>=2.0",
     "mypy>=0.900",
     "sphinx>=4.0",

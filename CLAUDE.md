@@ -43,7 +43,7 @@ python examples\gradio_demo.py
 - **Windows 10 version 2004 (Build 19041) or later** - Required for Process Loopback API
 - **Visual Studio 2022** with C++ development tools
 - **Windows SDK 10.0.26100.0** or later
-- **Python 3.7+** with virtual environment at `.venv`
+- **Python 3.8+** with virtual environment at `.venv`
 - **Dependencies**: pybind11, numpy
 
 ## Architecture
