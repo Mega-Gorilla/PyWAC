@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![Python](https://img.shields.io/badge/Python-3.7+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.8+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![Windows](https://img.shields.io/badge/Windows-10%2F11-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://www.microsoft.com/windows)
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 [![Version](https://img.shields.io/badge/Version-0.4.2-blue?style=for-the-badge)](https://github.com/Mega-Gorilla/pywac)
@@ -81,8 +81,8 @@ print(f"Active sessions: {', '.join(active)}")
 ## 📋 Requirements
 
 - **OS**: Windows 10 version 2004 (Build 19041) or later
-- **Python**: 3.7 or later
-- **Compiler**: Microsoft Visual C++ 14.0 or later (for building only)
+- **Python**: 3.8 or later
+- **Compiler**: Visual Studio 2022 (C++ development tools) + Windows SDK 10.0.26100.0 or later (for building only)
 
 ---
 
@@ -104,19 +104,30 @@ pip install -e .
 
 #### Prerequisites
 - Windows 10 (2004 or later) or Windows 11
-- Python 3.7+
+- Python 3.8+
 - Visual Studio 2022 (C++ development tools)
 - Windows SDK 10.0.26100.0 or later
 
-```bash
+#### Build Steps
+
+**Important**: Building C++ extensions requires Visual Studio Developer environment.
+
+```powershell
 # Create virtual environment
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 
 # Install dependencies
-pip install pybind11 numpy
+pip install pybind11 numpy setuptools
 
-# Build
+# Method A: Build from VS Developer PowerShell
+# Launch "Developer PowerShell for VS 2022" from Start Menu
+python setup.py build_ext --inplace
+
+# Method B: Build from regular PowerShell (set environment variables)
+& 'C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\Launch-VsDevShell.ps1' -Arch amd64
+$env:DISTUTILS_USE_SDK = "1"
+$env:MSSdk = "1"
 python setup.py build_ext --inplace
 ```
 
@@ -535,14 +546,14 @@ python setup.py build_ext --inplace
 
 ### Build Environment
 
-- Visual Studio 2022
+- Visual Studio 2022 (C++ development tools)
 - Windows SDK 10.0.26100.0+
-- Python 3.7-3.12
+- Python 3.8-3.13
 - Git
 
 ### Development Setup
 
-```bash
+```powershell
 # Clone repository
 git clone https://github.com/Mega-Gorilla/pywac.git
 cd pywac
@@ -550,6 +561,13 @@ cd pywac
 # Setup development environment
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
+pip install pybind11 numpy setuptools
+
+# Build C++ extensions (run from VS Developer PowerShell)
+# Or use Launch-VsDevShell.ps1
+python setup.py build_ext --inplace
+
+# Install development dependencies
 pip install -e .[dev]
 
 # Run tests
@@ -572,8 +590,8 @@ pywac/
 │   ├── recorder.py    # Recording features
 │   └── utils.py       # Utilities
 ├── src/               # C++ source
-│   ├── pypac_native.cpp      # Main module
-│   └── process_loopback_v2.cpp # Process Loopback implementation
+│   ├── audio_session_capture.cpp    # Session management & volume control
+│   └── process_loopback_queue.cpp   # Process Loopback implementation
 ├── examples/          # Sample code
 └── tests/            # Tests
 ```
@@ -610,8 +628,9 @@ For detailed technical specifications, see the [Technical Investigation Report](
 | Environment | Version | Status |
 |-------------|---------|--------|
 | Windows 11 | 23H2 | ✅ Fully working |
+| Windows 11 | 24H2 | ✅ Fully working |
 | Windows 10 | 21H2+ | ✅ Fully working |
-| Python | 3.7-3.12 | ✅ Tested |
+| Python | 3.8-3.13 | ✅ Tested |
 | Visual Studio | 2022 | ✅ Recommended |
 
 ### Tested Applications

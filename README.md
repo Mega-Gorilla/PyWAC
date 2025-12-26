@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![Python](https://img.shields.io/badge/Python-3.7+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.8+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![Windows](https://img.shields.io/badge/Windows-10%2F11-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://www.microsoft.com/windows)
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 [![Version](https://img.shields.io/badge/Version-0.4.2-blue?style=for-the-badge)](https://github.com/Mega-Gorilla/pywac)
@@ -81,8 +81,8 @@ print(f"アクティブなセッション: {', '.join(active)}")
 ## 📋 Requirements
 
 - **OS**: Windows 10 version 2004 (Build 19041) 以降
-- **Python**: 3.7 以降
-- **コンパイラ**: Microsoft Visual C++ 14.0 以降（ビルド時のみ）
+- **Python**: 3.8 以降
+- **コンパイラ**: Visual Studio 2022 (C++開発ツール) + Windows SDK 10.0.26100.0以降（ビルド時のみ）
 
 ---
 
@@ -104,19 +104,30 @@ pip install -e .
 
 #### 前提条件
 - Windows 10 (2004以降) または Windows 11
-- Python 3.7以上
+- Python 3.8以上
 - Visual Studio 2022（C++開発ツール）
 - Windows SDK 10.0.26100.0以降
 
-```bash
+#### ビルド手順
+
+**重要**: C++拡張モジュールのビルドにはVisual Studio Developer環境が必要です。
+
+```powershell
 # 仮想環境作成
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 
 # 依存関係インストール
-pip install pybind11 numpy
+pip install pybind11 numpy setuptools
 
-# ビルド
+# 方法A: VS Developer PowerShellからビルド
+# スタートメニューから「Developer PowerShell for VS 2022」を起動して実行
+python setup.py build_ext --inplace
+
+# 方法B: 通常のPowerShellからビルド（環境変数を設定）
+& 'C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\Launch-VsDevShell.ps1' -Arch amd64
+$env:DISTUTILS_USE_SDK = "1"
+$env:MSSdk = "1"
 python setup.py build_ext --inplace
 ```
 
@@ -585,16 +596,16 @@ for s in sessions:
 <details>
 <summary>必要なツール</summary>
 
-- Visual Studio 2022
+- Visual Studio 2022 (C++開発ツール)
 - Windows SDK 10.0.26100.0+
-- Python 3.7-3.12
+- Python 3.8-3.13
 - Git
 
 </details>
 
 ### 開発セットアップ
 
-```bash
+```powershell
 # リポジトリクローン
 git clone https://github.com/Mega-Gorilla/pywac.git
 cd pywac
@@ -602,6 +613,13 @@ cd pywac
 # 開発環境構築
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
+pip install pybind11 numpy setuptools
+
+# C++拡張のビルド（VS Developer PowerShellから実行）
+# または Launch-VsDevShell.ps1 を使用
+python setup.py build_ext --inplace
+
+# 開発用依存関係インストール
 pip install -e .[dev]
 
 # テスト実行
@@ -624,8 +642,8 @@ pywac/
 │   ├── recorder.py    # 録音機能
 │   └── utils.py       # ユーティリティ
 ├── src/               # C++ソース
-│   ├── pypac_native.cpp      # メインモジュール
-│   └── process_loopback_v2.cpp # Process Loopback実装
+│   ├── audio_session_capture.cpp    # セッション管理・音量制御
+│   └── process_loopback_queue.cpp   # Process Loopback実装
 ├── examples/          # サンプルコード
 └── tests/            # テスト
 ```
@@ -672,9 +690,9 @@ Windows 10 2004 (Build 19041) で導入されたProcess Loopback APIを使用し
 | 環境 | バージョン | 状態 |
 |------|-----------|------|
 | Windows 11 | 23H2 | ✅ 完全動作 |
-| Windows 11 | 24H2 | ⚠️ 一部制限あり |
+| Windows 11 | 24H2 | ✅ 完全動作 |
 | Windows 10 | 21H2+ | ✅ 完全動作 |
-| Python | 3.7-3.12 | ✅ テスト済み |
+| Python | 3.8-3.13 | ✅ テスト済み |
 | Visual Studio | 2022 | ✅ 推奨 |
 
 ### テスト済みアプリケーション
