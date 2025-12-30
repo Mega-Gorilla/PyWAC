@@ -722,8 +722,8 @@ std::vector<ProcessInfo> listAudioProcesses() {
 }
 
 // Python module definition
-PYBIND11_MODULE(process_loopback_queue, m) {
-    m.doc() = "Queue-based Process Audio Capture Module";
+PYBIND11_MODULE(capture, m) {
+    m.doc() = "PyWAC capture module - process-specific audio capture";
     
     // Process Info class
     py::class_<ProcessInfo>(m, "ProcessInfo")

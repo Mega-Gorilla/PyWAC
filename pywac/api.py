@@ -3,8 +3,8 @@ Simple function API for PyWAC.
 Provides easy-to-use functions for common audio tasks.
 """
 
-import os
-import sys
+import threading
+import warnings
 import numpy as np
 from typing import List, Optional, Dict, Any, Callable
 from .sessions import SessionManager
@@ -14,41 +14,54 @@ from .unified_recording import record as unified_record, UnifiedRecorder
 
 
 def _import_process_loopback():
-    """Helper function to import process_loopback_queue module with path fixes."""
+    """Helper function to import pywac.capture module."""
     try:
-        import process_loopback_queue as loopback
+        from pywac import capture as loopback
         return loopback
     except ImportError:
-        # Try adding parent directory to path
-        parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        if parent_dir not in sys.path:
-            sys.path.insert(0, parent_dir)
-        try:
-            import process_loopback_queue as loopback
-            return loopback
-        except ImportError:
-            return None
+        return None
 
 
-# Global instances for convenience functions
-_global_session_manager = None
-_global_audio_recorder = None
+# Thread-safe global instances for convenience functions
+_lock = threading.Lock()
+_global_session_manager: Optional[SessionManager] = None
+_global_audio_recorder: Optional[AudioRecorder] = None
 
 
 def _get_session_manager() -> SessionManager:
-    """Get or create global SessionManager instance."""
+    """Get or create thread-safe global SessionManager instance."""
     global _global_session_manager
     if _global_session_manager is None:
-        _global_session_manager = SessionManager()
+        with _lock:
+            if _global_session_manager is None:  # Double-check locking
+                _global_session_manager = SessionManager()
     return _global_session_manager
 
 
 def _get_audio_recorder() -> AudioRecorder:
-    """Get or create global AudioRecorder instance."""
+    """Get or create thread-safe global AudioRecorder instance."""
     global _global_audio_recorder
     if _global_audio_recorder is None:
-        _global_audio_recorder = AudioRecorder()
+        with _lock:
+            if _global_audio_recorder is None:  # Double-check locking
+                _global_audio_recorder = AudioRecorder()
     return _global_audio_recorder
+
+
+def refresh_sessions() -> None:
+    """
+    Refresh the global session manager (re-enumerate audio sessions).
+
+    Call this function when you need to update the session list after
+    applications have started or stopped playing audio.
+
+    Example:
+        >>> pywac.refresh_sessions()
+        >>> sessions = pywac.list_audio_sessions()
+    """
+    global _global_session_manager
+    with _lock:
+        _global_session_manager = SessionManager()
 
 
 # Session management functions
@@ -372,9 +385,14 @@ def find_audio_session(app_name: str) -> Optional[Dict[str, Any]]:
 def find_app(app_name: str) -> Optional[Dict[str, Any]]:
     """
     Deprecated: Use find_audio_session() instead.
-    
+
     Find an application by name and return its audio session info.
     """
+    warnings.warn(
+        "find_app() is deprecated, use find_audio_session() instead",
+        DeprecationWarning,
+        stacklevel=2
+    )
     return find_audio_session(app_name)
 
 
@@ -396,9 +414,14 @@ def get_active_sessions() -> List[str]:
 def get_active_apps() -> List[str]:
     """
     Deprecated: Use get_active_sessions() instead.
-    
+
     Get list of applications currently playing audio.
     """
+    warnings.warn(
+        "get_active_apps() is deprecated, use get_active_sessions() instead",
+        DeprecationWarning,
+        stacklevel=2
+    )
     return get_active_sessions()
 
 

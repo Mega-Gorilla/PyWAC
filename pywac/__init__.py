@@ -5,18 +5,10 @@ A high-level Python library for Windows audio capture and control.
 Enables process-specific audio recording and volume control.
 """
 
-__version__ = "0.4.2"
+__version__ = "1.0.0"
 __author__ = "PyWAC Contributors"
 
-# Import native extension
-import os
-import sys
 from typing import List, Optional, Dict, Any
-
-# Add _native directory to path for loading .pyd files
-_native_path = os.path.join(os.path.dirname(__file__), '_native')
-if os.path.exists(_native_path):
-    sys.path.insert(0, _native_path)
 
 # Import core components
 from .sessions import SessionManager, AudioSession
@@ -41,31 +33,42 @@ from .api import (
     get_active_apps,
     get_active_sessions,
     adjust_volume,
-    record_with_callback
+    record_with_callback,
+    refresh_sessions,
 )
 
 # Import utils module
 from . import utils
 
+# Import native modules as public API
+# These are low-level but stable APIs for advanced users
+try:
+    from . import core  # Session enumeration and system loopback
+    from . import capture  # Process-specific audio capture
+except ImportError:
+    # Native extensions not built yet
+    core = None  # type: ignore
+    capture = None  # type: ignore
+
 # Public API
 __all__ = [
     # Version
     '__version__',
-    
+
     # Classes
     'SessionManager',
     'AudioSession',
     'AudioRecorder',
     'AsyncAudioRecorder',
     'AudioData',
-    
+
     # Functions - Audio Recording
     'record_to_file',
     'record_audio',
     'record_process',
     'record_process_id',
     'record_with_callback',
-    
+
     # Functions - Session Management
     'list_audio_sessions',
     'list_recordable_processes',
@@ -73,15 +76,20 @@ __all__ = [
     'find_app',  # Deprecated
     'get_active_sessions',
     'get_active_apps',  # Deprecated
-    
+    'refresh_sessions',
+
     # Functions - Volume Control
     'set_app_volume',
     'get_app_volume',
     'adjust_volume',
     'mute_app',
     'unmute_app',
-    
+
     # Utilities
     'convert_float32_to_int16',
-    'utils'
+    'utils',
+
+    # Low-level native modules (public API)
+    'core',
+    'capture',
 ]
