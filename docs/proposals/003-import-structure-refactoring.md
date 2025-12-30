@@ -265,7 +265,6 @@ pywac = [
 ```python
 # tests/test_import_structure.py
 
-import sys
 import pytest
 
 # ネイティブ拡張が利用可能かチェック
@@ -278,12 +277,7 @@ def _native_available():
 
 requires_native = pytest.mark.skipif(
     not _native_available(),
-    reason="Native extensions not built"
-)
-
-requires_windows = pytest.mark.skipif(
-    sys.platform != "win32",
-    reason="Windows only"
+    reason="Native extensions not built. Run: python setup.py build_ext --inplace"
 )
 
 
@@ -295,7 +289,6 @@ def test_import_pywac():
 
 
 @requires_native
-@requires_windows
 def test_core_module_import():
     """Test that pywac.core is accessible as public API."""
     from pywac import core
@@ -304,7 +297,6 @@ def test_core_module_import():
 
 
 @requires_native
-@requires_windows
 def test_capture_module_import():
     """Test that pywac.capture is accessible as public API."""
     from pywac import capture
@@ -312,7 +304,6 @@ def test_capture_module_import():
 
 
 @requires_native
-@requires_windows
 def test_low_level_api_usage():
     """Test that low-level APIs work correctly."""
     from pywac.core import SessionEnumerator
@@ -329,7 +320,6 @@ def test_low_level_api_usage():
 
 
 @requires_native
-@requires_windows
 def test_deprecated_function_warning():
     """Test that deprecated functions emit warnings."""
     import warnings
@@ -342,7 +332,6 @@ def test_deprecated_function_warning():
         assert issubclass(w[0].category, DeprecationWarning)
 
 @requires_native
-@requires_windows
 def test_thread_safety():
     """Test that global singletons are thread-safe."""
     import threading
@@ -363,7 +352,6 @@ def test_thread_safety():
 
 
 @requires_native
-@requires_windows
 def test_refresh_sessions():
     """Test that refresh_sessions() is exposed as public API."""
     import pywac
@@ -373,7 +361,8 @@ def test_refresh_sessions():
 
 **テストスキップ条件:**
 - `requires_native`: ネイティブ拡張がビルドされていない場合はスキップ
-- `requires_windows`: Windows以外のプラットフォームではスキップ
+
+> **注**: PyWACはWindows専用ライブラリのため、プラットフォーム判定は不要です。
 
 ---
 
