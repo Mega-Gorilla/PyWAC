@@ -233,19 +233,59 @@ v2.0.0で削除：
 | 1 | `pywac._pywac_native` を `pywac.core` にリネーム | `setup.py` | **あり** |
 | 2 | `process_loopback_queue` を `pywac.capture` にリネーム | `setup.py` | **あり** |
 | 3 | `pywac/_native/` ディレクトリを削除 | `pywac/_native/` | **あり** |
-| 4 | インポート文を更新 | `api.py`, `unified_recording.py`, `sessions.py`, `recorder.py` | なし |
-| 5 | グローバルシングルトンをスレッドセーフ化 | `api.py` | なし |
-| 6 | `refresh_sessions()` 関数を追加 | `api.py`, `__init__.py` | なし |
-| 7 | 非推奨警告を追加 | `api.py` | なし |
-| 8 | `sys.path` 操作を削除 | `pywac/__init__.py` | なし |
-| 9 | テストを追加・更新 | `tests/` | なし |
-| 10 | ドキュメントを更新 | `docs/` | なし |
-| 11 | 移行ガイドを作成 | `docs/migrations/` | なし |
+| 4 | `pyproject.toml` のパッケージ設定を更新 | `pyproject.toml` | なし |
+| 5 | インポート文を更新 | `api.py`, `unified_recording.py`, `sessions.py`, `recorder.py` | なし |
+| 6 | グローバルシングルトンをスレッドセーフ化 | `api.py` | なし |
+| 7 | `refresh_sessions()` 関数を追加 | `api.py`, `__init__.py` | なし |
+| 8 | 非推奨警告を追加 | `api.py` | なし |
+| 9 | `sys.path` 操作を削除 | `pywac/__init__.py` | なし |
+| 10 | テストを追加・更新 | `tests/` | なし |
+| 11 | ドキュメントを更新 | `docs/` | なし |
+| 12 | 移行ガイドを作成 | `docs/migrations/` | なし |
+
+### pyproject.toml の更新
+
+```toml
+[tool.setuptools]
+packages = ["pywac"]  # "pywac._native" を削除
+
+[tool.setuptools.package-data]
+pywac = [
+    "*.pyd",      # Windows: core.pyd, capture.pyd
+    "*.so",       # Linux: core.so, capture.so
+]
+```
+
+**変更点:**
+- `pywac._native` をパッケージリストから削除
+- `package-data` でネイティブ拡張（`.pyd`, `.so`）を含める
 
 ### テスト計画
 
 ```python
 # tests/test_import_structure.py
+
+import sys
+import pytest
+
+# ネイティブ拡張が利用可能かチェック
+def _native_available():
+    try:
+        from pywac import core, capture
+        return True
+    except ImportError:
+        return False
+
+requires_native = pytest.mark.skipif(
+    not _native_available(),
+    reason="Native extensions not built"
+)
+
+requires_windows = pytest.mark.skipif(
+    sys.platform != "win32",
+    reason="Windows only"
+)
+
 
 def test_import_pywac():
     """Test that pywac can be imported cleanly."""
@@ -253,17 +293,26 @@ def test_import_pywac():
     assert hasattr(pywac, 'record_to_file')
     assert hasattr(pywac, 'SessionManager')
 
+
+@requires_native
+@requires_windows
 def test_core_module_import():
     """Test that pywac.core is accessible as public API."""
     from pywac import core
     assert hasattr(core, 'SessionEnumerator')
     assert hasattr(core, 'SimpleLoopback')
 
+
+@requires_native
+@requires_windows
 def test_capture_module_import():
     """Test that pywac.capture is accessible as public API."""
     from pywac import capture
     assert hasattr(capture, 'QueueBasedProcessCapture')
 
+
+@requires_native
+@requires_windows
 def test_low_level_api_usage():
     """Test that low-level APIs work correctly."""
     from pywac.core import SessionEnumerator
@@ -275,9 +324,12 @@ def test_low_level_api_usage():
     assert isinstance(sessions, list)
 
     # キャプチャインスタンス生成
-    capture = QueueBasedProcessCapture()
-    assert capture is not None
+    cap = QueueBasedProcessCapture()
+    assert cap is not None
 
+
+@requires_native
+@requires_windows
 def test_deprecated_function_warning():
     """Test that deprecated functions emit warnings."""
     import warnings
@@ -289,6 +341,8 @@ def test_deprecated_function_warning():
         assert len(w) == 1
         assert issubclass(w[0].category, DeprecationWarning)
 
+@requires_native
+@requires_windows
 def test_thread_safety():
     """Test that global singletons are thread-safe."""
     import threading
@@ -307,12 +361,19 @@ def test_thread_safety():
     # All threads should get the same instance
     assert len(set(results)) == 1
 
+
+@requires_native
+@requires_windows
 def test_refresh_sessions():
     """Test that refresh_sessions() is exposed as public API."""
     import pywac
     assert hasattr(pywac, 'refresh_sessions')
     pywac.refresh_sessions()
 ```
+
+**テストスキップ条件:**
+- `requires_native`: ネイティブ拡張がビルドされていない場合はスキップ
+- `requires_windows`: Windows以外のプラットフォームではスキップ
 
 ---
 
