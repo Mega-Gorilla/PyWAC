@@ -230,18 +230,49 @@ v2.0.0で削除：
 
 | # | タスク | ファイル | 破壊的変更 |
 |---|--------|----------|-----------|
-| 1 | `pywac._pywac_native` を `pywac.core` にリネーム | `setup.py` | **あり** |
-| 2 | `process_loopback_queue` を `pywac.capture` にリネーム | `setup.py` | **あり** |
-| 3 | `pywac/_native/` ディレクトリを削除 | `pywac/_native/` | **あり** |
-| 4 | `pyproject.toml` のパッケージ設定を更新 | `pyproject.toml` | なし |
-| 5 | インポート文を更新 | `api.py`, `unified_recording.py`, `sessions.py`, `recorder.py` | なし |
-| 6 | グローバルシングルトンをスレッドセーフ化 | `api.py` | なし |
-| 7 | `refresh_sessions()` 関数を追加 | `api.py`, `__init__.py` | なし |
-| 8 | 非推奨警告を追加 | `api.py` | なし |
-| 9 | `sys.path` 操作を削除 | `pywac/__init__.py` | なし |
-| 10 | テストを追加・更新 | `tests/` | なし |
-| 11 | ドキュメントを更新 | `docs/` | なし |
-| 12 | 移行ガイドを作成 | `docs/migrations/` | なし |
+| 1 | `PYBIND11_MODULE` のモジュール名を `core` に変更 | `src/audio_session_capture.cpp` | **あり** |
+| 2 | `PYBIND11_MODULE` のモジュール名を `capture` に変更 | `src/process_loopback_queue.cpp` | **あり** |
+| 3 | `setup.py` のモジュール名を更新 | `setup.py` | **あり** |
+| 4 | `pywac/_native/` ディレクトリを削除 | `pywac/_native/` | **あり** |
+| 5 | `pyproject.toml` のパッケージ設定を更新 | `pyproject.toml` | なし |
+| 6 | インポート文を更新 | `api.py`, `unified_recording.py`, `sessions.py`, `recorder.py` | なし |
+| 7 | グローバルシングルトンをスレッドセーフ化 | `api.py` | なし |
+| 8 | `refresh_sessions()` 関数を追加 | `api.py`, `__init__.py` | なし |
+| 9 | 非推奨警告を追加 | `api.py` | なし |
+| 10 | `sys.path` 操作を削除 | `pywac/__init__.py` | なし |
+| 11 | テストを追加・更新 | `tests/` | なし |
+| 12 | ドキュメントを更新 | `docs/` | なし |
+| 13 | 移行ガイドを作成 | `docs/migrations/` | なし |
+
+### C++ ソースファイルの変更
+
+```cpp
+// src/audio_session_capture.cpp
+// 変更前
+PYBIND11_MODULE(_pywac_native, m) {
+    ...
+}
+
+// 変更後
+PYBIND11_MODULE(core, m) {
+    m.doc() = "PyWAC core module - session enumeration and system loopback";
+    ...
+}
+```
+
+```cpp
+// src/process_loopback_queue.cpp
+// 変更前
+PYBIND11_MODULE(process_loopback_queue, m) {
+    ...
+}
+
+// 変更後
+PYBIND11_MODULE(capture, m) {
+    m.doc() = "PyWAC capture module - process-specific audio capture";
+    ...
+}
+```
 
 ### pyproject.toml の更新
 
@@ -253,12 +284,14 @@ packages = ["pywac"]  # "pywac._native" を削除
 pywac = [
     "*.pyd",      # Windows: core.pyd, capture.pyd
     "*.so",       # Linux: core.so, capture.so
+    "py.typed",   # 型情報マーカー
 ]
 ```
 
 **変更点:**
 - `pywac._native` をパッケージリストから削除
 - `package-data` でネイティブ拡張（`.pyd`, `.so`）を含める
+- `py.typed` を含めて型情報を維持
 
 ### テスト計画
 
@@ -281,6 +314,7 @@ requires_native = pytest.mark.skipif(
 )
 
 
+@requires_native
 def test_import_pywac():
     """Test that pywac can be imported cleanly."""
     import pywac
@@ -362,7 +396,10 @@ def test_refresh_sessions():
 **テストスキップ条件:**
 - `requires_native`: ネイティブ拡張がビルドされていない場合はスキップ
 
-> **注**: PyWACはWindows専用ライブラリのため、プラットフォーム判定は不要です。
+> **注**:
+> - PyWACはネイティブ拡張に依存するため、すべてのテストに `@requires_native` を付与
+> - テスト実行前に `python setup.py build_ext --inplace` でビルドが必要
+> - PyWACはWindows専用ライブラリのため、プラットフォーム判定は不要
 
 ---
 
