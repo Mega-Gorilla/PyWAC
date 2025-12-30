@@ -63,9 +63,10 @@ Pybind11Extension("pywac._process_loopback", ...)  # 名前空間内に移動
 ```
 
 **移行戦略**:
-- 新しいモジュール名でビルド
+- 新しいモジュール名 `pywac._process_loopback` でビルド
 - `api.py`, `unified_recording.py` のインポート文を更新
-- 古い`process_loopback_queue`は非推奨として一時的に維持（v1.0.0で削除）
+- 古い `process_loopback_queue` は削除（後方互換性なし）
+- 移行ガイドで代替方法を案内
 
 #### 1.2 `_native/__init__.py` の簡素化
 
@@ -256,11 +257,11 @@ def test_deprecated_function_warning():
 def test_thread_safety():
     """Test that global singletons are thread-safe."""
     import threading
-    import pywac
+    from pywac import api  # 内部実装のテスト
 
     results = []
     def get_manager():
-        results.append(id(pywac._get_session_manager()))
+        results.append(id(api._get_session_manager()))
 
     threads = [threading.Thread(target=get_manager) for _ in range(10)]
     for t in threads:
@@ -270,6 +271,14 @@ def test_thread_safety():
 
     # All threads should get the same instance
     assert len(set(results)) == 1
+
+def test_refresh_sessions():
+    """Test that refresh_sessions() is exposed as public API."""
+    import pywac
+    # refresh_sessions() は Phase 1 で公開APIとして追加
+    assert hasattr(pywac, 'refresh_sessions')
+    # 呼び出しが例外を投げないことを確認
+    pywac.refresh_sessions()
 ```
 
 ---
