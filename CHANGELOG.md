@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated all documentation, examples, and tools to use new module names
 
 ### Deprecated
-- `find_app()` - Use `list_audio_sessions()` with filtering instead
+- `find_app()` - Use `find_audio_session()` instead
 - `get_active_apps()` - Use `get_active_sessions()` instead
 
 ### Migration

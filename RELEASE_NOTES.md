@@ -45,7 +45,7 @@ cap = capture.QueueBasedProcessCapture()
 ### ⚠️ Deprecation Warnings
 
 The following functions now emit deprecation warnings:
-- `find_app()` - Use `list_audio_sessions()` with filtering
+- `find_app()` - Use `find_audio_session()` instead
 - `get_active_apps()` - Use `get_active_sessions()` instead
 
 ### 🔄 Compatibility
