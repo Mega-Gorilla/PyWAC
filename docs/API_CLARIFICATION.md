@@ -36,10 +36,10 @@ recorder.record_async(duration=5.0, callback=on_complete)
 
 #### QueueBasedProcessCapture（低レベルAPI）
 ```python
-import process_loopback_queue as plq
+from pywac import capture
 
 # リアルタイムストリーミング用
-capture = plq.QueueBasedProcessCapture()
+capture = capture.QueueBasedProcessCapture()
 capture.set_chunk_size(2400)  # 50ms chunks at 48kHz
 
 # 録音開始（非ブロッキング）
@@ -63,7 +63,7 @@ class RecordingManager:
     def start_realtime_recording(self, duration: int, process_id: int = 0):
         """リアルタイム録音開始"""
         # QueueBasedProcessCaptureを使用（UnifiedRecorderではない！）
-        self.realtime_capture = process_loopback_queue.QueueBasedProcessCapture()
+        self.realtime_capture = capture.QueueBasedProcessCapture()
         self.realtime_capture.set_chunk_size(int(48000 * 0.05))  # 50ms chunks
         
         if self.realtime_capture.start(process_id):
@@ -104,7 +104,7 @@ while True:
 ### ✅ 正しい実装: QueueBasedProcessCaptureを使用
 ```python
 # 正しい - リアルタイムにはQueueBasedProcessCapture
-capture = process_loopback_queue.QueueBasedProcessCapture()
+capture = capture.QueueBasedProcessCapture()
 capture.start(process_id)
 while capture.is_capturing():
     chunks = capture.pop_chunks()
@@ -121,7 +121,7 @@ loopback.start(process_id=1234)  # process_idパラメータは存在しない�
 ### ✅ 正しい実装: プロセス固有にはQueueBasedProcessCapture
 ```python
 # 正しい - プロセス固有録音
-capture = process_loopback_queue.QueueBasedProcessCapture()
+capture = capture.QueueBasedProcessCapture()
 capture.start(1234)  # プロセスID指定
 ```
 

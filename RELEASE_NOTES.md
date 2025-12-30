@@ -1,5 +1,65 @@
 # Release Notes
 
+## Version 1.0.0 (2024-12-30)
+
+### 🎯 Public API Release - Module Renaming
+
+PyWAC v1.0.0 marks the transition to stable public APIs with cleaner module names. This is a **breaking change** release that establishes the foundation for future development.
+
+### 🚨 Breaking Changes
+
+#### Native Module Renaming
+
+| Old Name (v0.4.x) | New Name (v1.0.0) |
+|-------------------|-------------------|
+| `pywac._pywac_native` | `pywac.core` |
+| `process_loopback_queue` | `pywac.capture` |
+
+#### Migration Required
+
+```python
+# Old (v0.4.x)
+import process_loopback_queue as loopback
+cap = loopback.QueueBasedProcessCapture()
+
+# New (v1.0.0)
+from pywac import capture
+cap = capture.QueueBasedProcessCapture()
+```
+
+### ✨ What's New
+
+- **Public APIs**: `pywac.core` and `pywac.capture` are now official public APIs
+- **Singleton SessionManager**: Thread-safe session management with automatic initialization
+- **`refresh_sessions()`**: New function to re-enumerate audio sessions without restarting
+- **Simplified Imports**: No more `sys.path` manipulation needed
+
+### 📦 Module Overview (v1.0.0)
+
+| Module | Description |
+|--------|-------------|
+| `pywac.core` | Session enumeration, system loopback capture |
+| `pywac.capture` | Process-specific audio capture |
+| `pywac.audio_data` | Unified audio data container |
+
+### ⚠️ Deprecation Warnings
+
+The following functions now emit deprecation warnings:
+- `find_app()` - Use `find_audio_session()` instead
+- `get_active_apps()` - Use `get_active_sessions()` instead
+
+### 🔄 Compatibility
+
+- **Not compatible** with v0.4.x import statements
+- All functionality preserved, only import paths changed
+- See migration guide for upgrade instructions
+
+### 📚 Migration Guide
+
+See [`docs/migrations/v1.0.0-module-rename.md`](docs/migrations/v1.0.0-module-rename.md) for detailed migration instructions.
+
+---
+
 ## Version 0.4.1 (2024-12-26)
 
 ### 🚀 Event-Driven Capture - Ultimate Performance

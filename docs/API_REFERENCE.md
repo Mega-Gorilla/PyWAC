@@ -353,8 +353,8 @@ Windowsプロセスのオーディオセッションを表します。
 
 ## 低レベルモジュール
 
-### process_loopback_queue
-イベント駆動型プロセスオーディオキャプチャ用のC++モジュール（v0.4.1以降）。
+### pywac.capture
+プロセス固有オーディオキャプチャ用のネイティブモジュール（v1.0.0以降）。
 SetEventHandle APIを使用してゼロポーリングを実現。
 
 #### 関数
@@ -387,7 +387,7 @@ SetEventHandle APIを使用してゼロポーリングを実現。
 ---
 
 ### 注意事項
-- v0.4.1以降、`process_loopback_queue`が推奨モジュールです
+- v1.0.0以降、`pywac.capture`が公式APIです
 - 以前のバージョン（process_loopback_v2, process_loopback_v3）は非推奨です
 
 ---
@@ -473,8 +473,8 @@ from pywac.queue_streaming import QueueBasedStreamingCapture
 capture = QueueBasedStreamingCapture(process_id=pid)
 
 # または低レベルAPI
-import process_loopback_queue
-capture = process_loopback_queue.QueueBasedProcessCapture()
+from pywac import capture
+cap = capture.QueueBasedProcessCapture()
 ```
 
 3. **ストリーミング**: 新しいコールバックインターフェース：

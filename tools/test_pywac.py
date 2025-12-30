@@ -1,11 +1,11 @@
-"""Quick test for PyWAC v0.4.2 modules"""
+"""Quick test for PyWAC v1.0.0 modules"""
 import sys
 import os
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-print("Testing PyWAC v0.4.2 modules...")
+print("Testing PyWAC v1.0.0 modules...")
 print("=" * 60)
 
 def test_session_module():
@@ -38,24 +38,24 @@ def test_session_module():
         print(f"[ERROR] Error: {e}")
         return False
 
-def test_queue_module():
+def test_capture_module():
     """Test process audio capture module"""
     print("\n[Testing Process Audio Capture Module]")
     try:
-        import process_loopback_queue as queue_module
-        print("[OK] process_loopback_queue module imported")
-        
+        from pywac import capture
+        print("[OK] pywac.capture module imported")
+
         # List processes
-        processes = queue_module.list_audio_processes()
+        processes = capture.list_audio_processes()
         print(f"[OK] Listed {len(processes)} processes")
-        
+
         # Check if event-driven mode would be available
-        capture = queue_module.QueueBasedProcessCapture()
+        cap = capture.QueueBasedProcessCapture()
         print("[OK] QueueBasedProcessCapture created")
-        
+
         # Note: Don't actually start capture in test
         print("  (Not starting actual capture in test)")
-        
+
         return True
     except ImportError as e:
         print(f"[ERROR] Import error: {e}")
@@ -67,7 +67,7 @@ def test_queue_module():
 
 def test_unified_recording():
     """Test unified recording interface"""
-    print("\n[Testing Unified Recording Interface (v0.4.2)]")
+    print("\n[Testing Unified Recording Interface (v1.0.0)]")
     try:
         from pywac.unified_recording import UnifiedRecorder, record
         print("[OK] UnifiedRecorder imported")
@@ -91,7 +91,7 @@ def main():
     
     # Test each component
     results.append(("Session Management", test_session_module()))
-    results.append(("Queue Module", test_queue_module()))
+    results.append(("Capture Module", test_capture_module()))
     results.append(("Unified Recording", test_unified_recording()))
     
     # Summary
@@ -108,7 +108,7 @@ def main():
     
     print("\n" + "=" * 60)
     if all_passed:
-        print("[SUCCESS] All tests passed! PyWAC v0.4.2 is working correctly.")
+        print("[SUCCESS] All tests passed! PyWAC v1.0.0 is working correctly.")
     else:
         print("[FAILED] Some tests failed. Check the output above.")
     

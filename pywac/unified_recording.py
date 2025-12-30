@@ -13,19 +13,12 @@ from .audio_data import AudioData
 
 
 def _import_process_loopback():
-    """Helper function to import process_loopback_queue module."""
+    """Helper function to import pywac.capture module."""
     try:
-        import process_loopback_queue as loopback
+        from pywac import capture as loopback
         return loopback
     except ImportError:
-        parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        if parent_dir not in sys.path:
-            sys.path.insert(0, parent_dir)
-        try:
-            import process_loopback_queue as loopback
-            return loopback
-        except ImportError:
-            return None
+        return None
 
 
 def _get_target_pid(target: Optional[Union[str, int]]) -> Optional[int]:
@@ -76,7 +69,7 @@ def _get_target_pid(target: Optional[Union[str, int]]) -> Optional[int]:
 
 def _capture_audio(pid: int, duration: float) -> Optional[AudioData]:
     """
-    Core audio capture implementation using process_loopback_queue.
+    Core audio capture implementation using pywac.capture.
     
     Args:
         pid: Process ID (0 for system-wide)

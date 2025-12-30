@@ -7,7 +7,7 @@ import threading
 import numpy as np
 from typing import Optional
 from datetime import datetime
-import pywac._native as _native  # Will be the compiled extension
+from pywac import core as _native  # Native extension: session enumeration and system loopback
 from .audio_data import AudioData
 
 

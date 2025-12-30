@@ -19,12 +19,12 @@ def get_version():
             for line in f:
                 if line.startswith("__version__"):
                     return line.split("=")[1].strip().strip('"').strip("'")
-    return "0.4.2"
+    return "1.0.0"
 
 # Define native extensions
 ext_modules = [
     Pybind11Extension(
-        "pywac._pywac_native",  # Session management and volume control
+        "pywac.core",  # Core module: session enumeration and system loopback
         ["src/audio_session_capture.cpp"],
         include_dirs=[],
         libraries=["ole32", "uuid", "mmdevapi", "psapi"],
@@ -32,7 +32,7 @@ ext_modules = [
         cxx_std=17,
     ),
     Pybind11Extension(
-        "process_loopback_queue",  # Event-driven process audio capture (v0.4.1)
+        "pywac.capture",  # Capture module: process-specific audio capture
         ["src/process_loopback_queue.cpp"],
         include_dirs=[],
         libraries=["ole32", "uuid", "mmdevapi", "avrt", "runtimeobject", "psapi"],
@@ -59,8 +59,7 @@ setup(
     # Package configuration
     packages=find_packages(exclude=["tests", "tests.*", "examples", "examples.*", "tools", "tools.*"]),
     package_data={
-        "pywac": ["py.typed"],  # Include type hints
-        "pywac._native": ["*.pyd", "*.so"],  # Include compiled extensions
+        "pywac": ["py.typed", "*.pyd", "*.so"],  # Include type hints and compiled extensions
     },
     include_package_data=True,
     

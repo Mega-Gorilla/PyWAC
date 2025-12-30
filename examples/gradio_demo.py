@@ -6,11 +6,6 @@ Interactive demo for all PyWAC features
 
 import sys
 import os
-# Add parent directory to path to find process_loopback_queue module
-parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
-
 import gradio as gr
 import pywac
 import numpy as np
@@ -23,18 +18,18 @@ from typing import Optional, List, Dict, Any, Tuple, Deque
 from collections import deque
 from pywac.audio_data import AudioData
 
-# Pre-import process_loopback_queue to avoid threading issues
-process_loopback_queue = None
+# Import pywac.capture for real-time recording
+capture = None
 try:
-    import process_loopback_queue
+    from pywac import capture
     # Test if module works properly
-    test_capture = process_loopback_queue.QueueBasedProcessCapture()
+    test_capture = capture.QueueBasedProcessCapture()
     del test_capture
-    print("process_loopback_queue module loaded successfully")
+    print("pywac.capture module loaded successfully")
 except ImportError as e:
-    print(f"Warning: process_loopback_queue module not available: {e}")
+    print(f"Warning: pywac.capture module not available: {e}")
     print("Real-time recording will not be available")
-    process_loopback_queue = None
+    capture = None
 
 
 class CircularBuffer:
@@ -175,8 +170,8 @@ class RecordingManager:
         if self.is_recording:
             return "すでに録音中です", None, ""
         
-        # Check if process_loopback_queue module is available
-        if process_loopback_queue is None:
+        # Check if capture module is available
+        if capture is None:
             return "リアルタイム録音機能は利用できません（モジュールが見つかりません）", None, ""
         
         self.realtime_mode = True
@@ -190,7 +185,7 @@ class RecordingManager:
         
         try:
             # Create capture instance
-            self.realtime_capture = process_loopback_queue.QueueBasedProcessCapture()
+            self.realtime_capture = capture.QueueBasedProcessCapture()
             chunk_frames = int(48000 * 0.05)  # 50ms chunks
             self.realtime_capture.set_chunk_size(chunk_frames)
             
@@ -227,7 +222,7 @@ class RecordingManager:
         """リアルタイム録音のポーリングループ"""
         while self.is_recording and self.realtime_mode:
             try:
-                if self.realtime_capture and process_loopback_queue:
+                if self.realtime_capture and capture:
                     chunks = self.realtime_capture.pop_chunks(max_chunks=10, timeout_ms=10)
                     
                     for chunk in chunks:

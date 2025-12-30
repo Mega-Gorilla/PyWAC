@@ -4,7 +4,7 @@ Audio session management module for PyWAC.
 
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
-import pywac._native as _native  # Will be the compiled extension
+from pywac import core as _native  # Native extension: session enumeration and system loopback
 
 
 @dataclass

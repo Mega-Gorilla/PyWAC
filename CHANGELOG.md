@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2024-12-30
+
+### Added
+- Thread-safe singleton pattern for `SessionManager`
+- `refresh_sessions()` function to re-enumerate audio sessions
+- Migration guide: `docs/migrations/v1.0.0-module-rename.md`
+- Test suite: `tests/test_import_structure.py`
+
+### Changed
+- **BREAKING**: Native module renamed from `pywac._pywac_native` to `pywac.core`
+- **BREAKING**: Native module renamed from `process_loopback_queue` to `pywac.capture`
+- **BREAKING**: Removed `pywac/_native/` directory (no longer needed)
+- Made `pywac.core` and `pywac.capture` public APIs
+- Simplified import statements throughout the codebase
+- Updated all documentation, examples, and tools to use new module names
+
+### Deprecated
+- `find_app()` - Use `find_audio_session()` instead
+- `get_active_apps()` - Use `get_active_sessions()` instead
+
+### Migration
+See [`docs/migrations/v1.0.0-module-rename.md`](docs/migrations/v1.0.0-module-rename.md) for detailed migration instructions.
+
 ## [0.4.1] - 2024-12-26
 
 ### Added
@@ -107,7 +130,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - WAV file export
 - Simple Python API
 
-[Unreleased]: https://github.com/Mega-Gorilla/pywac/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/Mega-Gorilla/pywac/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/Mega-Gorilla/pywac/compare/v0.4.1...v1.0.0
+[0.4.1]: https://github.com/Mega-Gorilla/pywac/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/Mega-Gorilla/pywac/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Mega-Gorilla/pywac/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Mega-Gorilla/pywac/compare/v0.1.0...v0.2.0

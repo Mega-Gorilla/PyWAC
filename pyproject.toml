@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pywac"
-version = "0.4.2"
+version = "1.0.0"
 description = "Python Windows Audio Capture (PyWAC) - Process-specific audio recording and control for Windows"
 readme = "README.md"
 license = "MIT"
@@ -78,12 +78,11 @@ Changelog = "https://github.com/Mega-Gorilla/pywac/blob/main/CHANGELOG.md"
 # pywac-volume = "pywac.cli:volume_command"
 
 [tool.setuptools]
-packages = ["pywac", "pywac._native"]
+packages = ["pywac"]
 include-package-data = true
 
 [tool.setuptools.package-data]
-pywac = ["py.typed"]
-"pywac._native" = ["*.pyd", "*.so"]
+pywac = ["py.typed", "*.pyd", "*.so"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
