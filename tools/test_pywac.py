@@ -40,8 +40,7 @@ def test_session_module():
 
 def test_capture_module():
     """Test process audio capture module"""
-    print("
-[Testing Process Audio Capture Module]")
+    print("\n[Testing Process Audio Capture Module]")
     try:
         from pywac import capture
         print("[OK] pywac.capture module imported")
