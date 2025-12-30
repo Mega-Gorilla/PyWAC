@@ -3,7 +3,7 @@
 ## 📁 ドキュメント構成
 
 ```
-pypac/
+pywac/
 ├── ルートドキュメント
 │   ├── README.md              # プロジェクト概要（日本語）
 │   ├── README.en.md           # プロジェクト概要（英語）
@@ -15,11 +15,23 @@ pypac/
 │
 ├── docs/                     # 技術ドキュメント
 │   ├── README_ja.md          # ドキュメントインデックス（日本語）
-│   ├── API_Reference.md      # APIドキュメント（v0.4.1更新）
-│   ├── Process_Loopback_API_Research.md  # 技術調査
-│   ├── v0.4.1_implementation_summary.md  # イベント駆動実装サマリー
+│   ├── API_REFERENCE.md      # APIドキュメント
+│   ├── API_CLARIFICATION.md  # API設計の補足説明
 │   ├── Documentation_Structure.md    # このファイル
 │   ├── Version_Management_Strategy.md  # バージョン戦略
+│   ├── v0.4.1_implementation_summary.md  # イベント駆動実装サマリー
+│   ├── v0.4.2_unified_recording.md   # 統一録音API実装
+│   │
+│   ├── architecture/         # アーキテクチャ設計
+│   │   └── (将来のアーキテクチャドキュメント)
+│   │
+│   ├── proposals/            # 改善・リファクタリング提案
+│   │   └── 003-import-structure-refactoring.md  # インポート構造改善
+│   │
+│   ├── research/             # 技術調査・分析
+│   │   ├── Process_Loopback_API_Research.md  # Windows API調査
+│   │   └── recording_api_analysis.md         # 録音API分析
+│   │
 │   └── migrations/           # 移行ガイド
 │       ├── v0.3.0-audiodata.md
 │       ├── v0.4.0-queue-architecture.md
@@ -48,19 +60,37 @@ pypac/
 
 ### docs/ ディレクトリ
 - **README_ja.md** - ドキュメントハブとナビゲーション
-- **API_リファレンス.md** - 完全なAPIドキュメント
-- **Process_Loopback_API調査報告.md** - Windows APIの技術的深掘り
-- **ドキュメント構造.md** - このファイル、ドキュメント構成の説明
-- **バージョン管理戦略.md** - バージョンとリリースの管理方法
-- **migrations/** - バージョン固有の移行ガイド
+- **API_REFERENCE.md** - 完全なAPIドキュメント
+- **API_CLARIFICATION.md** - API設計の補足説明
+- **Documentation_Structure.md** - このファイル、ドキュメント構成の説明
+- **Version_Management_Strategy.md** - バージョンとリリースの管理方法
+
+### docs/architecture/
+- アーキテクチャ設計ドキュメント
+- システム構成図、設計判断の記録
+
+### docs/proposals/
+- 改善・リファクタリング提案
+- 番号付きでトラッキング（例: `003-import-structure-refactoring.md`）
+- 関連Issueへのリンクを含む
+
+### docs/research/
+- **Process_Loopback_API_Research.md** - Windows APIの技術的深掘り
+- **recording_api_analysis.md** - 録音API分析
+- 技術調査・分析結果
+
+### docs/migrations/
+- バージョン固有の移行ガイド
 
 ## 🎯 ドキュメントガイドライン
 
 ### いつドキュメントを作成するか
-- **新機能**: API_リファレンス.mdを更新し、例を追加
+- **新機能**: API_REFERENCE.mdを更新し、例を追加
 - **破壊的変更**: docs/migrations/に移行ガイドを作成
 - **バグ修正**: CHANGELOG.mdを更新
-- **調査**: 説明的なファイル名でdocs/に追加
+- **技術調査**: docs/research/に追加
+- **リファクタリング提案**: docs/proposals/に提案書を作成（Issue連携）
+- **アーキテクチャ決定**: docs/architecture/に記録
 
 ### いつドキュメントを作成しないか
 - 内部リファクタリング（APIに影響しない限り）
