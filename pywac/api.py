@@ -329,7 +329,7 @@ def list_recordable_processes() -> List[Dict[str, Any]]:
         ...     print(f"{proc['name']} (PID: {proc['pid']})")
         
     Note:
-        Requires process_loopback_queue module for process-specific recording.
+        Requires pywac.capture module for process-specific recording.
     """
     # Import here to avoid circular dependency
     from .unified_recording import _import_process_loopback
@@ -337,7 +337,7 @@ def list_recordable_processes() -> List[Dict[str, Any]]:
     try:
         loopback = _import_process_loopback()
         if loopback is None:
-            raise ImportError("process_loopback_queue not available")
+            raise ImportError("pywac.capture not available")
         
         processes = loopback.list_audio_processes()
         return [

@@ -67,12 +67,12 @@ Windows Audio APIs (WASAPI, Process Loopback)
 
 Two separate pybind11 extension modules in `src/`:
 
-1. **`pywac._pywac_native`** (`audio_session_capture.cpp`)
+1. **`pywac.core`** (`audio_session_capture.cpp`)
    - Audio session enumeration and control
    - Volume/mute per-application
    - System-wide loopback capture via WASAPI
 
-2. **`process_loopback_queue`** (`process_loopback_queue.cpp`)
+2. **`pywac.capture`** (`process_loopback_queue.cpp`)
    - Process-specific audio capture using Windows Process Loopback API
    - Uses `ActivateAudioInterfaceAsync` with `AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK`
    - Queue-based streaming with `QueueBasedProcessCapture` class

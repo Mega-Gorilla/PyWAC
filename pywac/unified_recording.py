@@ -69,7 +69,7 @@ def _get_target_pid(target: Optional[Union[str, int]]) -> Optional[int]:
 
 def _capture_audio(pid: int, duration: float) -> Optional[AudioData]:
     """
-    Core audio capture implementation using process_loopback_queue.
+    Core audio capture implementation using pywac.capture.
     
     Args:
         pid: Process ID (0 for system-wide)

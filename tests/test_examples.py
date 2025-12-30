@@ -313,8 +313,6 @@ class TestProcessRecording(unittest.TestCase):
             self.assertIn('pid', process)
             self.assertIn('name', process)
     
-    @unittest.skipIf(not os.path.exists("D:\\Codes\\pypac\\process_loopback_v2.pyd"),
-                     "Process loopback module not available")
     def test_record_process_by_id(self):
         """Test recording from specific process by ID"""
         # Get system PID (0)
